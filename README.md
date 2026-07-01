@@ -6,8 +6,8 @@ AI가 게임 DB의 전 생애주기(**도입 전 검증 → 배포 CI/CD → 운
 **하네스**입니다. 각 단계 공통 패턴: *자연어 → 다단계 자동 진단 → 검증(Eval) → 사람 승인*.
 값싼 반복 = **SLM**(Phi-4 로컬), 복잡한 해석 = **LLM**(클라우드), 안전 연결 = **MCP**(읽기전용).
 
-> 이 리포지토리는 데모 **자산 전체**를 담습니다. 현재는 **환경 구성**과
-> 운영(Runtime) 데모팩 A/B/C/M이 준비된 상태입니다.
+> 이 리포지토리는 데모 **자산 전체**를 담습니다. 현재는 **환경 구성**이 완료된 상태이며,
+> 개별 데모(E~M)는 `/demos` 하위에 placeholder로 준비되어 있습니다.
 
 ## 리포지토리 구조
 ```
@@ -19,7 +19,7 @@ workload/
   game-driver/    Python 게임 부하 드라이버 (OLE DB SET 흉내)
   native/         (선택) C++ MSOLEDBSQL 마이크로 드라이버
 issue-injection/  이슈 주입 1~6 + 각 롤백 스크립트
-demos/            pre-prod(E/F/G/O), cicd(I/J/K), runtime(A/B/C/M)
+demos/            pre-prod(E/F/G/O), cicd(I/J/K), runtime(A/B/C/M) placeholder
 mcp/              MCP 서버 config (읽기전용 원칙)
 docs/             아키텍처 / 로드맵 / 런북 / 보안
 scripts/          헬퍼(prereq 점검, 스키마 적용, 시드)
@@ -98,4 +98,4 @@ sqlcmd @(& { . .\scripts\lib.ps1; Import-DotEnv; Get-SqlcmdArgs }) -i issue-inje
 - 파괴적 작업(이슈 주입, `-Reset`)은 명시적 플래그 필요.
 
 ## 다음 단계
-Pre-prod(E/F/G/O) 또는 CI/CD(I/J/K) 데모 구현. 라이프사이클 매핑은 `demos/README.md` 참고.
+`/demos` 하위 시나리오(E~M) 구현. 라이프사이클 매핑은 `demos/README.md` 참고.
