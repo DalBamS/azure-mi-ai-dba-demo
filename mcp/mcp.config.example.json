@@ -1,19 +1,21 @@
 {
   "$comment": "azure-mi-ai-dba-demo — MCP server config EXAMPLE. Copy to mcp.config.json (git-ignored) and fill via env vars. NO secrets/connection strings hardcoded. Principle: READ-ONLY diagnostics; state changes require human approval via a separate path.",
+  "$mssql_primary_path": "PRIMARY path for DB metadata/DMV is the official VS Code 'SQL Server (mssql)' extension in GitHub Copilot agent mode. The extension is itself the MCP tool host, so NO separate npm server is required: create an Azure SQL MI connection profile with Microsoft Entra auth and query DMVs/metadata read-only from agent mode. Official Microsoft SQL MCP Server (Data API Builder based, RBAC/telemetry): https://learn.microsoft.com/sql/mcp/ . The 'mssql' server below is a DISABLED standalone ALTERNATIVE (example only). NOTE: the previously referenced '@microsoft/mssql-mcp' npm package does NOT exist (npm 404) and has been removed.",
   "servers": {
     "mssql": {
-      "$comment": "VS Code mssql extension / MCP for read-only DB metadata & DMV queries against the game DB.",
+      "$comment": "OPTIONAL standalone MCP server — ALTERNATIVE to the VS Code mssql extension. EXAMPLE ONLY (community package, requires org security approval before use). Supports Microsoft Entra (aad) auth. Verified to exist on npm; DO NOT substitute a non-existent package name. Env var names are illustrative — confirm against the package's own docs. Never hardcode connection strings.",
+      "$disabled": true,
       "command": "npx",
-      "args": ["-y", "@microsoft/mssql-mcp"],
+      "args": ["-y", "@connorbritain/mssql-mcp-server"],
       "env": {
-        "MSSQL_SERVER": "${env:SQLMI_SERVER}",
-        "MSSQL_DATABASE": "${env:SQLMI_DATABASE}",
-        "MSSQL_AUTHENTICATION": "${env:AUTH_MODE}",
-        "MSSQL_READONLY": "true"
+        "SERVER_NAME": "${env:SQLMI_SERVER}",
+        "DATABASE_NAME": "${env:SQLMI_DATABASE}",
+        "SQL_AUTH_MODE": "aad",
+        "READONLY": "true"
       }
     },
     "azure": {
-      "$comment": "Azure MCP (microsoft/mcp) for Log Analytics, Defender for SQL, resource metadata. Auth via az login / managed identity (DefaultAzureCredential).",
+      "$comment": "Azure MCP (@azure/mcp — exists on npm, e.g. 3.0.0-beta.x) for Log Analytics, Defender for SQL, resource metadata. Auth via az login / DefaultAzureCredential (no secrets in config). Docs: https://github.com/Azure/azure-mcp . Usage: npx -y @azure/mcp",
       "command": "npx",
       "args": ["-y", "@azure/mcp"],
       "env": {
