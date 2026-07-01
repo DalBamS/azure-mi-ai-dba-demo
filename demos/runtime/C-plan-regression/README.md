@@ -40,3 +40,11 @@
 - `dbo.usp_matches_summary`의 cached plan과 execution stats가 확인됨.
 - `set_options`/앱 경로 차이를 설명할 수 있음.
 - 수정안은 재컴파일 남발 없이 안정적인 plan 선택을 유도함.
+
+## 재현 전제조건 (규모/데이터 왜곡 의존성)
+> ⚠ 이 데모는 **default 프로파일(matches 200k) 또는 충분한 데이터 규모/왜곡**에서 재현됩니다. 라이브 MI 검증에서 **smoke 프로파일(matches 5,000)** 로 돌렸더니 파라미터 스니핑 회귀가 재현되지 않았습니다: 작은 `@maxPlayer`와 큰 `@maxPlayer`의 실행계획이 동일(Index Seek + Sort + Stream Aggregate)했고 논리읽기도 39로 같았습니다. 즉 데이터가 작으면 어떤 파라미터든 같은 plan이 최적이라 plan이 갈리지 않습니다.
+
+**확정적으로 재현하는 방법 (택1)**
+1. **규모 확대(권장, 가장 자연스러움)**: `SEED_PROFILE=default`(matches 200k)로 시드하거나 `matches`를 충분히 키웁니다. `player_id`가 낮은 값에 몰리도록 분포를 왜곡하면(예: 소수 플레이어가 대량 매치 보유) 작은 `@maxPlayer`는 Index Seek(소수 행)로, 큰 `@maxPlayer`는 Scan + Hash Aggregate가 최적이 되어 plan이 확실히 갈립니다.
+2. **Query Store 강제 플랜**: smoke 규모에서도 데모를 확정적으로 연출하려면, 작은 파라미터로 sniff된 plan을 Query Store에서 `sp_query_store_force_plan`으로 강제해 큰 파라미터 호출이 그 plan을 재사용하도록 만들면 회귀를 결정적으로 재현할 수 있습니다.
+3. 스키마/쿼리를 바꿔 plan 분기를 강제할 경우, `issue-injection\03_plan_regression.sql` 및 `03_eval.sql`과 정합을 반드시 맞추세요.

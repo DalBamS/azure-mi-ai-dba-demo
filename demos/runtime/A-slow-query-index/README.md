@@ -43,6 +43,8 @@
 
 ## 임팩트 강조 (발표 팁)
 > ⚠ 기본 시드 규모(leaderboard가 player당 ~1행, ≤100k)에선 인덱스 DROP 후에도 **wall-clock(경과시간) 차이가 sub-second**라 청중이 체감하기 어려울 수 있습니다. 시간 숫자 대신 아래 **구조적 근거**를 임팩트 포인트로 제시하세요.
+>
+> 라이브 MI 검증(smoke 시드, leaderboard 992행)에서도 wall-clock은 sub-second였고 논리읽기 차이도 **9 vs 2**로 작게 나왔습니다. 즉 임팩트는 시간이 아니라 **논리읽기(logical reads)와 플랜 형태(Index Seek + 정렬 제거 vs Clustered Index Scan + Sort)**로 보는 것이 정확합니다.
 - **논리읽기(logical reads)**: `03_eval.sql`의 `SET STATISTICS IO` 출력에서 인덱스 적용 전(clustered index **Scan**, 전체 페이지 읽기) vs 후(**Seek** + 소수 페이지) 읽기 수가 수십~수백 배 차이 나는 것을 나란히 보여주기.
 - **실행계획 연산자**: 적용 전 `Clustered Index Scan` + `Sort` → 적용 후 `Index Seek`(정렬 불필요)로 바뀌는 그림이 가장 설득력 있음.
 - **확장성 메시지**: "지금은 데모 규모라 밀리초지만, 이 스캔은 데이터가 커질수록 선형으로 악화된다"로 프로덕션 함의를 연결.

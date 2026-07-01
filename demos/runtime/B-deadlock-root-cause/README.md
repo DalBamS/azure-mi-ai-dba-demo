@@ -12,6 +12,7 @@
 2. 별도 두 세션에서 `sessionA`와 `sessionB`를 동시에 실행해 deadlock 발생.
 3. `01_observe_blocking.sql`로 현재 lock/wait를 관찰.
 4. `02_deadlock_evidence.sql`로 system_health XE의 deadlock XML을 수집.
+   - **Azure SQL MI/DB 근거**: 데드락 그래프는 system_health의 `ring_buffer`보다 **event_file(.xel)** 타깃에 안정적으로 남습니다. 라이브 MI 검증에서 데드락 47건을 유발했을 때 `ring_buffer` 쿼리는 0건이었지만 `sys.fn_xe_file_target_read_file`로 .xel을 읽으면 `xml_deadlock_report`가 정상 조회됐습니다. 그래서 이 스크립트는 event_file을 우선 읽고 ring_buffer는 폴백으로 UNION 합니다(온프렘/IaaS SQL Server에서는 ring_buffer가 채워지는 경우가 많아 폴백이 유효).
 5. AI가 lock order inversion(통화 → 인벤 vs 인벤 → 통화)을 원인으로 설명.
 6. `03_eval.sql` 체크리스트로 deadlock graph와 victim/objects를 확인.
 7. `04_safe_pattern.sql`의 일관된 락 순서 패턴을 수정안으로 제안.
