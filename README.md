@@ -97,5 +97,8 @@ sqlcmd @(& { . .\scripts\lib.ps1; Import-DotEnv; Get-SqlcmdArgs }) -i issue-inje
 - MCP/AI 진단은 **읽기전용**. 변경(인덱스 생성 등)은 사람 승인 후 적용.
 - 파괴적 작업(이슈 주입, `-Reset`)은 명시적 플래그 필요.
 
+## 발표 자료
+- **발표 스토리보드**: [`docs/presentation/storyboard.md`](docs/presentation/storyboard.md) (라이브 MI 실측 근거 기반, 운영 A·B·O 중심 3막).
+
 ## 다음 단계
 Pre-prod(E/F/G/O) 또는 CI/CD(I/J/K) 데모 구현. 라이프사이클 매핑은 `demos/README.md` 참고.
