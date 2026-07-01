@@ -17,7 +17,7 @@ BEGIN
     RETURN;
 END
 
-SELECT rule, detected,
+SELECT [rule], detected,
        CASE WHEN detected = 1 THEN 'PASS' ELSE 'CHECK' END AS status
 FROM (VALUES
     ('L1 implicit conversion (@region NVARCHAR vs region VARCHAR)',
@@ -28,7 +28,7 @@ FROM (VALUES
         CASE WHEN CHARINDEX(N'YEAR(m.played_at)', @def) > 0 THEN 1 ELSE 0 END),
     ('L3 leading-wildcard LIKE',
         CASE WHEN CHARINDEX(N'LIKE ''%''', @def) > 0 THEN 1 ELSE 0 END)
-) AS checks(rule, detected);
+) AS checks([rule], detected);
 GO
 
 PRINT 'Cross-check with the plan-level signal (run after executing the proc once so a plan exists):';
