@@ -55,8 +55,15 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
+      # global.json(db-project) 이 SDK 를 .NET 8 로 고정하므로, 러너 기본 10.x 대신
+      # Microsoft.Build.Sql 이 검증한 .NET 8 SDK 로 빌드된다.
+      - name: Show resolved SDK
+        working-directory: demos/cicd/I-nl-migration/db-project
+        run: dotnet --version
+
       - name: Build DACPAC (Microsoft.Build.Sql)
-        run: dotnet build "$DACPAC_PROJECT" -c Release
+        working-directory: demos/cicd/I-nl-migration/db-project
+        run: dotnet build GameDb.sqlproj -c Release
 
       - name: Locate & upload DACPAC
         run: |
