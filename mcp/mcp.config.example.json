@@ -1,17 +1,19 @@
 {
   "$comment": "azure-mi-ai-dba-demo — MCP server config EXAMPLE. Copy to mcp.config.json (git-ignored) and fill via env vars. NO secrets/connection strings hardcoded. Principle: READ-ONLY diagnostics; state changes require human approval via a separate path.",
-  "$mssql_primary_path": "PRIMARY path for DB metadata/DMV is the official VS Code 'SQL Server (mssql)' extension in GitHub Copilot agent mode. The extension is itself the MCP tool host, so NO separate npm server is required: create an Azure SQL MI connection profile with Microsoft Entra auth and query DMVs/metadata read-only from agent mode. Official Microsoft SQL MCP Server (Data API Builder based, RBAC/telemetry): https://learn.microsoft.com/sql/mcp/ . The 'mssql' server below is a DISABLED standalone ALTERNATIVE (example only). NOTE: the previously referenced '@microsoft/mssql-mcp' npm package does NOT exist (npm 404) and has been removed.",
+  "$mssql_primary_path": "PRIMARY (recommended) path for DB metadata/DMV is the official VS Code 'SQL Server (mssql)' extension in GitHub Copilot AGENT MODE. The extension ships its own built-in MCP tools, so NO separate npx package is needed: create an Azure SQL MI connection profile with Microsoft Entra auth and query DMVs/metadata read-only from agent mode. The 'mssql' server below is the SECONDARY, headless/agent option (a community npx MCP server) for environments without the extension.",
+  "$version_note": "Package versions move fast — RE-CONFIRM the latest before a demo (e.g. `npm view mssql-mcp-node version`). Verified at authoring time: mssql-mcp-node=3.0.0, @connorbritain/mssql-mcp-server=0.6.0, @azure/mcp=3.0.0-beta.22. The previously referenced '@microsoft/mssql-mcp' does NOT exist on npm (404) and was removed.",
   "servers": {
     "mssql": {
-      "$comment": "OPTIONAL standalone MCP server — ALTERNATIVE to the VS Code mssql extension. EXAMPLE ONLY (community package, requires org security approval before use). Supports Microsoft Entra (aad) auth. Verified to exist on npm; DO NOT substitute a non-existent package name. Env var names are illustrative — confirm against the package's own docs. Never hardcode connection strings.",
-      "$disabled": true,
+      "$comment": "SECONDARY (headless/agent) option: community npx MCP server. This example uses 'mssql-mcp-node' (read-only BY DEFAULT — do NOT set MSSQL_ENABLE_WRITES). For Entra/AAD-only auth without a SQL password, swap to '@connorbritain/mssql-mcp-server' (SQL_AUTH_MODE=aad). All values injected via env — never hardcode secrets. Confirm env var names against the package's current docs before use.",
       "command": "npx",
-      "args": ["-y", "@connorbritain/mssql-mcp-server"],
+      "args": ["-y", "mssql-mcp-node"],
       "env": {
-        "SERVER_NAME": "${env:SQLMI_SERVER}",
-        "DATABASE_NAME": "${env:SQLMI_DATABASE}",
-        "SQL_AUTH_MODE": "aad",
-        "READONLY": "true"
+        "MSSQL_SERVER": "${env:SQLMI_SERVER}",
+        "MSSQL_DATABASE": "${env:SQLMI_DATABASE}",
+        "MSSQL_USER": "${env:SQLMI_USER}",
+        "MSSQL_PASSWORD": "${env:SQLMI_PASSWORD}",
+        "MSSQL_ENCRYPT": "true",
+        "MSSQL_TRUST_SERVER_CERTIFICATE": "false"
       }
     },
     "azure": {
