@@ -1,0 +1,20 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": { "value": "koreacentral" },
+    "namePrefix": { "value": "gamedemo" },
+    "resourceGroupName": { "value": "gamedemo-rg" },
+    "vCores": { "value": 4 },
+    "storageSizeInGB": { "value": 256 },
+    "administratorLogin": { "value": "sqladmin" },
+    "administratorLoginPassword": {
+      "reference": {
+        "keyVault": { "id": "/subscriptions/<SUB_ID>/resourceGroups/<KV_RG>/providers/Microsoft.KeyVault/vaults/<KV_NAME>" },
+        "secretName": "sqlmi-admin-password"
+      }
+    },
+    "aadAdminObjectId": { "value": "" },
+    "aadAdminLogin": { "value": "" }
+  }
+}
