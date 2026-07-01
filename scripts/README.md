@@ -6,8 +6,9 @@
 | 스크립트 | 역할 |
 |----------|------|
 | `lib.ps1` | 공용 함수: `.env` 로딩, Key Vault 비밀 조회, AUTH_MODE별 sqlcmd 인자 생성 |
-| `check-prereqs.ps1` | 사전요건 점검 (sqlcmd, python, az, ODBC Driver 18, `.env`) |
-| `apply-schema.ps1` | 게임 스키마 DDL + 인덱스 적용 (idempotent) |
+| `check-prereqs.ps1` | 사전요건 점검 (sqlcmd, python, az, ODBC Driver 18, `.env`, gamedb Query Store 상태) |
+| `apply-schema.ps1` | 게임 스키마 DDL + 인덱스 + Query Store 적용 (idempotent) |
+| `enable-querystore.ps1` | `schema\ddl\03_query_store.sql`만 적용하고 QS 상태 출력 |
 | `seed.ps1` | 시드 데이터 생성 (`-Profile default\|smoke`, `-Reset`, 규모 파라미터) |
 
 ## 인증 (AUTH_MODE)
@@ -20,6 +21,7 @@
 ```powershell
 .\check-prereqs.ps1
 .\apply-schema.ps1
+.\enable-querystore.ps1      # QS만 다시 보장/확인할 때
 .\seed.ps1 -Profile smoke        # 로컬 스모크
 .\seed.ps1 -Reset                # 초기화 후 재시드(default 규모)
 ```
