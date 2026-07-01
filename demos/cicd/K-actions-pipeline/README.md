@@ -20,7 +20,9 @@ flowchart LR
   F -- 예 --> G[ai-failure-summary: Copilot 로그 요약]
   F -- 아니오 --> H[통과]
 ```
-`*` = `DEPLOY_ENABLED=true` 일 때만 실제 동작. 기본값은 `false`(가드) → 실 리소스 없이 통과.
+`*` = 게이트가 **active** 일 때만 실제 동작. 게이트 active 조건 = `DEPLOY_ENABLED=true` **그리고** Azure secrets 존재.
+기본값 `false`(또는 secrets 미설정) → 실 리소스 없이 안전하게 통과. `workflow_dispatch`로 `deploy_enabled=true`를
+줘도 secrets가 없으면 "배포했을 것"만 알리고 **hard-fail 없이 green** 유지(데모 안전).
 
 ## 구성
 | 경로 | 내용 |
@@ -58,7 +60,7 @@ flowchart LR
 
 ## Eval 기준
 - `db-ci.yml`이 유효한 YAML이고 6개 job이 정의됨(build/migration-lint/deploy-ephemeral/drift-check/smoke-load/ai-failure-summary).
-- `DEPLOY_ENABLED=false`(기본)에서 배포/drift/스모크가 안전하게 스킵(가드).
+- `DEPLOY_ENABLED=false`(기본)에서 배포/drift/스모크가 안전하게 스킵(가드). `deploy_enabled=true`라도 secrets가 없으면 게이트가 스킵해 green 유지.
 - `migration-lint`가 down 누락 시 실패(롤백 대칭성 강제).
 - 실패 시 `ai-failure-summary`가 `if: failure()`로 동작해 요약을 Job Summary에 게시.
 - 워크플로에 하드코딩된 비밀/커넥션스트링이 없음(모두 `secrets.*`).
