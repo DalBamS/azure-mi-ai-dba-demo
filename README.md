@@ -7,8 +7,9 @@ AI가 게임 DB의 전 생애주기(**도입 전 검증 → 배포 CI/CD → 운
 값싼 반복 = **SLM**(Phi-4 로컬), 복잡한 해석 = **LLM**(클라우드), 안전 연결 = **MCP**(읽기전용).
 SLM/LLM 결정 근거는 [docs/architecture.md §3](docs/architecture.md#3-역할-분리--slm--llm--mcp)의 표를 따르며, 자동 라우터가 아니라 데모별 배치입니다(예: SLM=G 로컬 린트, LLM=B/F/J 리포트).
 
-> 이 리포지토리는 데모 **자산 전체**를 담습니다. 현재는 **환경 구성**과
-> 운영(Runtime) 데모팩 A/B/C/M이 준비된 상태입니다.
+> 이 리포지토리는 데모 **자산 전체**를 담습니다. 운영(Runtime) A/B/C/M,
+> Pre-prod E/F/G/O, CI/CD I/J/K까지 11개 데모가 발표용 런북과 SQL/스크립트
+> 검증팩·산출물까지 준비되어 있습니다.
 
 ## 리포지토리 구조
 ```
@@ -62,14 +63,20 @@ Copy-Item .env.example .env
 .\scripts\apply-schema.ps1        # 01_tables.sql -> 02_indexes.sql -> 03_query_store.sql (idempotent)
 ```
 
-### 4. 시드 데이터
+### 4. Query Store 활성화
+```powershell
+.\scripts\enable-querystore.ps1   # apply-schema.ps1에도 포함됨
+```
+Query Store는 E(부하 시나리오 합성)와 F(캡처/리플레이 회귀)의 관측 근거입니다.
+
+### 5. 시드 데이터
 ```powershell
 .\scripts\seed.ps1 -Profile smoke     # 로컬 검증(1,000 players)
-.\scripts\seed.ps1                     # 데모 규모(default, 100,000 players)
+.\scripts\seed.ps1 -Profile default   # 데모 규모(100,000 players)
 # .\scripts\seed.ps1 -Reset            # 초기화 후 재시드
 ```
 
-### 5. 상시 부하
+### 6. 상시 부하
 ```powershell
 # (A) 게임 특화 부하 (Python)
 cd workload\game-driver
@@ -80,7 +87,7 @@ python driver.py                       # Ctrl+C 까지
 # (B) 베이스라인 OLTP — workload\hammerdb\README.md 참고 (HammerDB TPROC-C)
 ```
 
-### 6. 이슈 주입 (발표 중)
+### 7. 이슈 주입 (발표 중)
 각 이슈를 유발하고, 대응 롤백으로 되돌립니다. 예:
 ```powershell
 # #1 누락 인덱스 -> 랭킹 풀스캔
@@ -102,4 +109,4 @@ sqlcmd @(& { . .\scripts\lib.ps1; Import-DotEnv; Get-SqlcmdArgs }) -i issue-inje
 - **발표 스토리보드**: [`docs/presentation/storyboard.md`](docs/presentation/storyboard.md) (라이브 MI 실측 근거 기반, 운영 A·B·O 중심 3막).
 
 ## 다음 단계
-Pre-prod(E/F/G/O) 또는 CI/CD(I/J/K) 데모 구현. 라이프사이클 매핑은 `demos/README.md` 참고.
+데모 구현은 완료되어 있습니다. 라이프사이클별 실행 순서는 [`demos/README.md`](demos/README.md)에서 고르고, 남은 작업은 라이브 리허설과 발표 후 임시 네트워크/접속 경로 정리입니다.
