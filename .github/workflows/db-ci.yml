@@ -108,17 +108,36 @@ jobs:
   deploy-ephemeral:
     needs: [build, migration-lint]
     runs-on: ubuntu-latest
+    outputs:
+      active: ${{ steps.gate.outputs.active }}
     steps:
       - uses: actions/download-artifact@v4
         with: { name: dacpac, path: out }
 
-      - name: Guard notice
-        if: env.DEPLOY_ENABLED != 'true'
-        run: echo "DEPLOY_ENABLED=false → 실제 배포 건너뜀(데모 가드). 아래는 구성만 표시."
+      # 게이트 판정: DEPLOY_ENABLED=true 이고 Azure secrets 가 있을 때만 실제 배포.
+      # 토글을 켰지만 secrets 가 없으면 hard-fail 없이 "배포했을 것" 만 알리고 스킵(데모 안전).
+      - name: Resolve deploy gate
+        id: gate
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          SQL_CONNECTION_STRING: ${{ secrets.SQL_CONNECTION_STRING }}
+        run: |
+          active=false
+          if [[ "$DEPLOY_ENABLED" == "true" ]]; then
+            if [[ -n "$AZURE_CLIENT_ID" && -n "$SQL_CONNECTION_STRING" ]]; then
+              active=true
+            else
+              echo "::notice::DEPLOY_ENABLED=true 이지만 Azure secrets 미설정 → 실제 배포 스킵(데모 안전)."
+            fi
+          else
+            echo "DEPLOY_ENABLED=false → 실제 배포 건너뜀(데모 가드). 아래는 구성만 표시."
+          fi
+          echo "active=$active" >> "$GITHUB_OUTPUT"
+          echo "게이트 상태: DEPLOY_ENABLED=$DEPLOY_ENABLED, deploy_active=$active"
 
-      # OIDC 로그인 — 시크릿 하드코딩 없음. (가드 시 skip)
+      # OIDC 로그인 — 시크릿 하드코딩 없음. (게이트 active 일 때만)
       - name: Azure login (OIDC)
-        if: env.DEPLOY_ENABLED == 'true'
+        if: steps.gate.outputs.active == 'true'
         uses: azure/login@v2
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
@@ -127,7 +146,7 @@ jobs:
 
       # DACPAC 배포(azure/sql-action). 파괴적 변경 차단 옵션 명시.
       - name: Deploy DACPAC to ephemeral DB
-        if: env.DEPLOY_ENABLED == 'true'
+        if: steps.gate.outputs.active == 'true'
         uses: azure/sql-action@v2.3
         with:
           connection-string: ${{ secrets.SQL_CONNECTION_STRING }}
@@ -138,7 +157,7 @@ jobs:
             /p:DropObjectsNotInSource=false
 
   # ---------------------------------------------------------------------------
-  # 4) 스키마 drift / 회귀 검사 (가드)
+  # 4) 스키마 drift / 회귀 검사 (게이트 active 일 때만)
   # ---------------------------------------------------------------------------
   drift-check:
     needs: deploy-ephemeral
@@ -146,10 +165,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Guard notice
-        if: env.DEPLOY_ENABLED != 'true'
+        if: needs.deploy-ephemeral.outputs.active != 'true'
         run: echo "가드 - 배포된 DB가 없어 drift 검사 스킵. scripts/drift-check.sql 참고."
       - name: Run drift check (SqlPackage DeployReport + guard query)
-        if: env.DEPLOY_ENABLED == 'true'
+        if: needs.deploy-ephemeral.outputs.active == 'true'
         run: |
           # DACPAC 와 실제 DB 차이를 리포트로만 산출(Publish 아님).
           sqlpackage /Action:DeployReport \
@@ -160,26 +179,26 @@ jobs:
           sqlcmd -C -b -i demos/cicd/K-actions-pipeline/scripts/drift-check.sql \
             -S "${{ secrets.SQLMI_SERVER }}" -d "${{ secrets.SQLMI_DATABASE }}" -G
       - uses: actions/upload-artifact@v4
-        if: env.DEPLOY_ENABLED == 'true'
+        if: needs.deploy-ephemeral.outputs.active == 'true'
         with: { name: drift-report, path: drift-report.xml }
 
   # ---------------------------------------------------------------------------
-  # 5) 부하 스모크 — 기존 game-driver 재사용 (가드, 짧게)
+  # 5) 부하 스모크 — 기존 game-driver 재사용 (게이트 active 일 때만, 짧게)
   # ---------------------------------------------------------------------------
   smoke-load:
-    needs: drift-check
+    needs: [drift-check, deploy-ephemeral]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Guard notice
-        if: env.DEPLOY_ENABLED != 'true'
+        if: needs.deploy-ephemeral.outputs.active != 'true'
         run: echo "가드 - 부하 스모크 스킵. 실행 방법은 scripts/smoke-load.md 참고."
       - name: Setup Python
-        if: env.DEPLOY_ENABLED == 'true'
+        if: needs.deploy-ephemeral.outputs.active == 'true'
         uses: actions/setup-python@v5
         with: { python-version: "3.11" }
       - name: Short smoke workload (reuse game-driver)
-        if: env.DEPLOY_ENABLED == 'true'
+        if: needs.deploy-ephemeral.outputs.active == 'true'
         env:
           SQLMI_SERVER: ${{ secrets.SQLMI_SERVER }}
           SQLMI_DATABASE: ${{ secrets.SQLMI_DATABASE }}
