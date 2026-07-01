@@ -67,8 +67,10 @@ SELECT TOP (25)
 FROM pivoted
 WHERE base_ms IS NOT NULL AND replay_ms IS NOT NULL
 ORDER BY (replay_ms - base_ms) DESC;   -- biggest regressions first
-GO
 
+-- NOTE: no GO here — keep part-1 and part-2 in a single batch so the
+--       @base_start/@base_end/@replay_start/@replay_end variables stay in
+--       scope for the wait-category query below.
 PRINT '2) Wait-category shift (replay - baseline), total wait ms.';
 ;WITH w AS
 (
