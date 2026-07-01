@@ -44,6 +44,8 @@ $def
 Invoke-RestMethod -Uri "http://localhost:11434/api/generate" -Method Post -Body $body -ContentType 'application/json'
 ```
 
+> **배치 실행**: 여러 객체를 한 번에 린트하려면 [`run_batch_lint.ps1`](./run_batch_lint.ps1)을 쓰세요 — `01_collect_objects.sql` 1번 결과를 객체별 `.sql`로 내보낸 폴더를 넘기면 룰셋을 적용해 객체별/통합 JSON을 생성합니다(엔드포인트·키는 환경변수만, 비밀 하드코딩 없음). 예: `.\run_batch_lint.ps1 -InputDir .\objects`.
+
 ## 프롬프트 템플릿 (핵심)
 > 너는 T-SQL 정적 분석기다. 아래 룰셋(L1~L7)만 사용해 주어진 객체의 안티패턴을 찾아라. 각 발견을 `{object, rule, severity, evidence, fix}` JSON 배열로만 출력하라. 근거(evidence)는 원문 구절을 인용하라. 확실하지 않으면 포함하지 마라(오탐 최소화).
 

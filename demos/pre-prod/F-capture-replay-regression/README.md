@@ -2,6 +2,28 @@
 
 버전 업그레이드/티어 변경 같은 **도입 전 변경**이 성능 회귀를 일으키는지, 동일 워크로드를 캡처해 대상에 리플레이하고 **wait stats·duration을 비교**해 자연어로 판정하는 데모입니다. 전통적 DEA(Database Experimentation Assistant) 워크플로의 **AI 버전**입니다.
 
+## 전제조건 (Prerequisites)
+- **Query Store가 켜져 있어야 합니다.** 비교(`03_compare_waits.sql`)는 Query Store를 유일한 데이터소스로 사용합니다. wait stats까지 비교하려면 **wait statistics capture가 ON**이어야 합니다(기본값 ON). 확인/설정 예시:
+  ```sql
+  -- 현재 상태 확인
+  SELECT actual_state_desc, wait_stats_capture_mode_desc
+  FROM sys.database_query_store_options;
+  -- 꺼져 있으면 활성화 (플레이스홀더 DB명으로 교체)
+  ALTER DATABASE [<your_game_db>] SET QUERY_STORE = ON;
+  ALTER DATABASE [<your_game_db>] SET QUERY_STORE (WAIT_STATS_CAPTURE_MODE = ON);
+  ```
+- baseline·replay 부하가 **Query Store 보존 기간(`stale_query_threshold_days`) 안**에 들어와야 두 구간을 함께 조회할 수 있습니다.
+
+## 데이터소스 관계 — capture(XEvents) ↔ compare(Query Store)
+이 데모는 **두 개의 서로 다른 데이터소스**를 씁니다. 역할을 혼동하지 마세요.
+
+| 단계 | 파일 | 데이터소스 | 역할 |
+|------|------|-----------|------|
+| 캡처 | `01_capture.sql` | **Extended Events**(`demo_capture_replay`) | 리플레이용 **문장 스트림**(rpc/batch completed + sql_text) 확보. ostress/RML로 충실 재생할 때 씀 |
+| 비교 | `03_compare_waits.sql` | **Query Store** | baseline vs replay 구간의 **duration·reads·wait delta** 산출(회귀 판정의 실제 근거) |
+
+즉, **XEvents는 "무엇을 다시 돌릴지"(replay 입력)** 를, **Query Store는 "얼마나 느려졌는지"(비교 결과)** 를 담당합니다. 회귀 판정 수치는 XEvents 링버퍼가 아니라 **Query Store에서** 나옵니다. (game-driver를 그대로 재실행하는 권장 데모(옵션 A)에서는 XEvents 스트림 추출이 없어도 되며, XEvents는 옵션 B(ostress/RML)에서만 필수입니다.)
+
 ## 구성 파일
 | 파일 | 역할 |
 |------|------|
@@ -12,11 +34,24 @@
 | `05_cleanup.sql` | 캡처 XEvents 세션 제거 |
 
 ## 발표 흐름
-1. `01_capture.sql`로 캡처 세션을 켜고, baseline 부하(game-driver)를 흘린다. 구간 UTC 시각 기록.
-2. `02_replay.md`대로 **대상 티어/버전**에 동일 부하를 리플레이한다(E의 결정적 프로파일 재사용 권장). 구간 UTC 시각 기록.
-3. `03_compare_waits.sql`의 4개 시각 변수를 채워 실행 → 회귀 상위 쿼리와 대기유형 변화를 본다.
+1. `01_capture.sql`로 캡처 세션을 켜고, baseline 부하(game-driver)를 흘린다. **baseline 시작/종료 UTC 시각을 기록**한다.
+2. `02_replay.md`대로 **대상 티어/버전**에 동일 부하를 리플레이한다(E의 결정적 프로파일 재사용 권장). **replay 시작/종료 UTC 시각을 기록**한다.
+3. `03_compare_waits.sql`의 4개 UTC 변수(`@base_start`/`@base_end`/`@replay_start`/`@replay_end`)를 채워 실행 → 회귀 상위 쿼리와 대기유형 변화를 본다.
 4. AI 하네스가 `04_ai_report.md` 템플릿으로 **자연어 회귀 리포트 + 배포 권고**를 생성.
 5. 데모 후 `05_cleanup.sql`로 캡처 세션 정리.
+
+> **UTC 구간 기록 팁**: 두 구간의 시각은 반드시 **UTC**로 기록하세요. `03_compare_waits.sql`은 `SYSUTCDATETIME()` 기준이며 Query Store의 `runtime_stats_interval.start_time`도 UTC입니다. 부하 실행 직전/직후에 아래로 현재 UTC를 찍어두면 편합니다.
+> ```sql
+> SELECT SYSUTCDATETIME() AS mark_utc;   -- baseline/replay 시작·종료 시 각각 실행해 기록
+> ```
+
+## Query Store 타이밍 주의 (비교 정확도)
+- **집계 간격 경계**: Query Store는 `INTERVAL_LENGTH_MINUTES`(기본 60분) 단위로 런타임 통계를 모읍니다. baseline/replay 구간이 **간격 경계에 걸치거나 서로 다른 두 간격에 섞이면** delta가 왜곡될 수 있습니다. 짧고 명확한 부하 구간을 쓰고, 필요하면 간격 길이를 줄이세요:
+  ```sql
+  ALTER DATABASE [<your_game_db>] SET QUERY_STORE (INTERVAL_LENGTH_MINUTES = 5);
+  ```
+- **플러시 지연(`DATA_FLUSH_INTERVAL_SECONDS`)**: 통계는 메모리에서 주기적으로 기록됩니다. 부하 종료 **직후** 조회하면 마지막 구간이 아직 안 보일 수 있으니, 비교 쿼리는 잠시(≥ 플러시 간격) 기다렸다 실행하세요.
+- **구간 정렬**: `03`은 `rsi.start_time`이 기록한 UTC 창 안에 드는 간격만 집계합니다. baseline과 replay 창이 **겹치지 않도록** 충분한 간격(idle)을 두고 부하를 돌리세요.
 
 ## 기존 수동 방식 vs AI 하네스 방식
 
