@@ -4,7 +4,17 @@
 
 ## 연결 자산
 - 부하 도구: `workload\game-driver`(Python, `WORKLOAD_MIX_*`/`WORKLOAD_CONCURRENCY`), `workload\hammerdb`(TPROC-C, `count_ware`/`num_vu`)
-- 근거 소스: Query Store (게임 DB에 `SET QUERY_STORE = ON` 필요)
+- 근거 소스: Query Store (게임 DB에 [scripts\enable-querystore.ps1](../../../scripts/enable-querystore.ps1) 적용 필요)
+
+## 전제(Prereq)
+- Query Store 활성: `.\scripts\enable-querystore.ps1` 실행. `.\scripts\apply-schema.ps1`에도 포함되어 최초 스키마 적용 시 같이 켜집니다.
+- **ODBC Driver 18 for SQL Server** 설치.
+- 리포지토리 루트 `.env` 구성 (`SQLMI_SERVER`, `AUTH_MODE` 등). 비밀 하드코딩 금지.
+- game-driver 의존성 설치:
+  ```powershell
+  pip install -r workload\game-driver\requirements.txt
+  ```
+- QS는 interval/flush 타이밍 때문에 부하 직후 덜 보일 수 있습니다. `03_query_store.sql`은 데모용으로 짧은 간격(5분/60초)을 설정해 이 지연을 줄입니다.
 
 ## 구성 파일
 | 파일 | 역할 |
@@ -15,14 +25,63 @@
 | `profile.example.env` | 생성 산출물 예시(동접 5만 시나리오) |
 
 ## 발표 흐름
-1. game-driver/HammerDB로 배경 부하를 얼마간 흘려 Query Store에 데이터를 쌓는다.
-2. `01_capture_top_queries.sql`로 "실제로 무엇이 얼마나 도는지"(랭킹/재화/인벤 비중)를 읽는다.
-3. 자연어 요구를 합성기에 넣는다:
+1. Query Store를 켭니다(최초 1회).
    ```powershell
+   .\scripts\enable-querystore.ps1
+   # 또는 .\scripts\apply-schema.ps1 실행 시 01_tables.sql -> 02_indexes.sql -> 03_query_store.sql 순서로 함께 적용
+   ```
+   상태 확인:
+   ```sql
+   SELECT actual_state_desc,
+          query_capture_mode_desc,
+          interval_length_minutes,
+          current_storage_size_mb,
+          max_storage_size_mb
+   FROM sys.database_query_store_options;
+   ```
+2. 루트 `.env`를 구성한 뒤 배경 부하를 최소 3~5분, 동시성 8~16 정도로 흘립니다.
+   ```powershell
+   python workload\game-driver\driver.py --duration 300 --concurrency 16
+   ```
+   게임 특화 믹스는 `WORKLOAD_MIX_CURRENCY_TRANSFER` / `WORKLOAD_MIX_RANKING_QUERY` / `WORKLOAD_MIX_INVENTORY_UPDATE`로 조절합니다. 필요하면 `workload\hammerdb`의 TPROC-C도 병행해 베이스라인 OLTP 부하를 더합니다.
+3. QS 적재를 확인합니다. `schema\ddl\03_query_store.sql` 하단 확인 쿼리 또는 `01_capture_top_queries.sql`의 2번 결과에서 카테고리별 `executions > 0`인지 봅니다.
+   ```sql
+   ;WITH categorized AS
+   (
+       SELECT SUM(rs.count_executions) AS executions,
+              CASE
+                  WHEN qt.query_sql_text LIKE '%leaderboard%'      THEN 'ranking_query'
+                  WHEN qt.query_sql_text LIKE '%currency_ledger%'  THEN 'currency_transfer'
+                  WHEN qt.query_sql_text LIKE '%inventory%'        THEN 'inventory_update'
+                  ELSE 'other'
+              END AS category
+       FROM sys.query_store_query AS q
+       JOIN sys.query_store_query_text AS qt ON qt.query_text_id = q.query_text_id
+       JOIN sys.query_store_plan AS p        ON p.query_id = q.query_id
+       JOIN sys.query_store_runtime_stats AS rs ON rs.plan_id = p.plan_id
+       JOIN sys.query_store_runtime_stats_interval AS rsi ON rsi.runtime_stats_interval_id = rs.runtime_stats_interval_id
+       WHERE rsi.start_time >= DATEADD(HOUR, -1, SYSUTCDATETIME())
+       GROUP BY CASE
+                  WHEN qt.query_sql_text LIKE '%leaderboard%'      THEN 'ranking_query'
+                  WHEN qt.query_sql_text LIKE '%currency_ledger%'  THEN 'currency_transfer'
+                  WHEN qt.query_sql_text LIKE '%inventory%'        THEN 'inventory_update'
+                  ELSE 'other'
+                END
+   )
+   SELECT category, executions
+   FROM categorized
+   WHERE category IN ('ranking_query', 'currency_transfer', 'inventory_update')
+   ORDER BY executions DESC;
+   ```
+   결과가 0이면 game-driver를 더 돌리거나 Query Store flush/interval 집계를 기다립니다.
+4. `01_capture_top_queries.sql`로 "실제로 무엇이 얼마나 도는지"(랭킹/재화/인벤 비중)를 읽습니다.
+5. 자연어 요구를 합성기에 넣어 자연어 → 실행 파라미터를 만듭니다.
+   ```powershell
+   cd demos\pre-prod\E-load-scenario-synthesis
    python 02_synthesize_profile.py --request "런칭 첫날 동접 5만, 재화 40%/랭킹 30%" --duration 600 --emit-env profile.env
    ```
-4. 출력된 `WORKLOAD_MIX_*`/`WORKLOAD_CONCURRENCY`를 루트 `.env`에 반영하고 `python workload\game-driver\driver.py` 실행, HammerDB는 제안된 `count_ware`/`num_vu` 적용.
-5. `03_eval.sql`의 `@req_*`에 합성 믹스를 넣어 관측 비중과의 drift를 PASS/CHECK로 확인.
+   출력된 `WORKLOAD_MIX_*`/`WORKLOAD_CONCURRENCY`를 루트 `.env`에 반영하고 `python workload\game-driver\driver.py`를 실행합니다. HammerDB는 제안된 `count_ware`/`num_vu`를 적용합니다.
+6. `03_eval.sql`의 `@req_*`에 합성 믹스를 넣어 관측 비중과의 drift를 PASS/CHECK로 확인합니다.
 
 ## 합성 휴리스틱(투명·조정 가능)
 - **동접→워커 스레드**: 동접(CCU) 전부가 매 순간 DB를 치지 않음. `threads = clamp(round(CCU × active_ratio), 1, 512)`, 기본 `active_ratio=0.02`. (`--active-ratio`로 조정)

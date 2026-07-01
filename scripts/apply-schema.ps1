@@ -1,5 +1,5 @@
 <#
-    scripts\apply-schema.ps1 — create the game schema (DDL + indexes) idempotently.
+    scripts\apply-schema.ps1 — create the game schema and Query Store settings idempotently.
     Reads connection settings from .env / environment (auth-mode aware).
 
     Usage:
@@ -16,7 +16,8 @@ Import-DotEnv
 $repoRoot = Split-Path $PSScriptRoot -Parent
 $files = @(
     Join-Path $repoRoot 'schema\ddl\01_tables.sql',
-    Join-Path $repoRoot 'schema\ddl\02_indexes.sql'
+    Join-Path $repoRoot 'schema\ddl\02_indexes.sql',
+    Join-Path $repoRoot 'schema\ddl\03_query_store.sql'
 )
 
 $connArgs = Get-SqlcmdArgs -Database $Database
