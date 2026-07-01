@@ -39,15 +39,24 @@ WHERE sp.name = 'rls_players';
 GO
 
 /* --------------------------------------------------------------------------
-   4) (선택) RLS 동작 확인: region 컨텍스트 설정 → 해당 region만 보이는지.
+   4) RLS 동작 확인: region 컨텍스트 설정 → 해당 region 행만 보이는지.
       기본 세션(컨텍스트 미설정)은 전체가 보여야 정상(안전 술어).
+      주의: 데모 술어에는 db_owner 예외가 없으므로 admin/db_owner 로 실행해도
+            필터가 실제로 관찰됩니다. 시드에 KR/JP/NA/EU/SEA 가 있어야 @kr < @all.
+      PASS 조건: 컨텍스트 설정 시 실제로 행이 줄고(@kr < @all), 리셋 시 복원(@reset = @all).
    -------------------------------------------------------------------------- */
-DECLARE @all INT = (SELECT COUNT(*) FROM dbo.players);
+DECLARE @all       INT = (SELECT COUNT(*) FROM dbo.players);
+DECLARE @kr_expect INT = (SELECT COUNT(*) FROM dbo.players WHERE region = 'KR');
 EXEC sys.sp_set_session_context @key = N'region', @value = N'KR';
 DECLARE @kr  INT = (SELECT COUNT(*) FROM dbo.players);
 EXEC sys.sp_set_session_context @key = N'region', @value = NULL;
 DECLARE @reset INT = (SELECT COUNT(*) FROM dbo.players);
 
-SELECT @all AS rows_no_context, @kr AS rows_region_KR, @reset AS rows_after_reset,
-       CASE WHEN @kr <= @all AND @reset = @all THEN 'PASS' ELSE 'CHECK' END AS rls_behavior;
+SELECT @all AS rows_no_context, @kr AS rows_region_KR,
+       @kr_expect AS rows_region_KR_expected, @reset AS rows_after_reset,
+       CASE
+            WHEN @kr = @kr_expect AND @kr < @all AND @reset = @all THEN 'PASS'
+            WHEN @kr = @all                                        THEN 'NO-OP (필터 미관찰: db_owner 예외/전부 KR? 저권한 유저로 재시연 권장)'
+            ELSE 'CHECK'
+       END AS rls_behavior;
 GO

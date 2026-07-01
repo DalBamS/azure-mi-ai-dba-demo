@@ -48,20 +48,22 @@ IF SCHEMA_ID(N'Security') IS NULL
     EXEC(N'CREATE SCHEMA Security;');
 GO
 
-IF OBJECT_ID(N'Security.fn_players_region_predicate', N'IF') IS NOT NULL
-    DROP FUNCTION Security.fn_players_region_predicate;
-GO
-CREATE FUNCTION Security.fn_players_region_predicate(@region VARCHAR(16))
-    RETURNS TABLE WITH SCHEMABINDING AS
-    RETURN SELECT 1 AS ok
-           WHERE SESSION_CONTEXT(N'region') IS NULL                         -- 서비스/관리 세션 = 전체 허용(안전)
-              OR @region = CONVERT(VARCHAR(16), SESSION_CONTEXT(N'region')) -- region 컨텍스트 일치 행만
-              OR IS_ROLEMEMBER('db_owner') = 1;                             -- 관리자 예외
-GO
-
+/* 재실행 안전: 함수가 정책에 schema-bound이므로 SECURITY POLICY 를 먼저 DROP 후 함수 DROP */
 IF OBJECT_ID(N'Security.rls_players', N'SP') IS NOT NULL   -- security policy
     DROP SECURITY POLICY Security.rls_players;
 GO
+IF OBJECT_ID(N'Security.fn_players_region_predicate', N'IF') IS NOT NULL
+    DROP FUNCTION Security.fn_players_region_predicate;
+GO
+/* 데모용 술어: region 필터가 실제로 관찰되도록 관리자 예외를 두지 않는다.
+   (SESSION_CONTEXT('region') 미설정 시에는 전체 허용 → 부하 드라이버/타 데모 무영향) */
+CREATE FUNCTION Security.fn_players_region_predicate(@region VARCHAR(16))
+    RETURNS TABLE WITH SCHEMABINDING AS
+    RETURN SELECT 1 AS ok
+           WHERE SESSION_CONTEXT(N'region') IS NULL                          -- 서비스/관리 세션 = 전체 허용(안전)
+              OR @region = CONVERT(VARCHAR(16), SESSION_CONTEXT(N'region'));  -- region 컨텍스트 일치 행만
+GO
+
 CREATE SECURITY POLICY Security.rls_players
     ADD FILTER PREDICATE Security.fn_players_region_predicate(region) ON dbo.players
     WITH (STATE = ON);

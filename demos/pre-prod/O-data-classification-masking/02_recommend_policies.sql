@@ -52,8 +52,7 @@ PRINT 'CREATE FUNCTION Security.fn_players_region_predicate(@region VARCHAR(16))
 PRINT '    RETURNS TABLE WITH SCHEMABINDING AS';
 PRINT '    RETURN SELECT 1 AS ok';
 PRINT '           WHERE SESSION_CONTEXT(N''region'') IS NULL';
-PRINT '              OR @region = CONVERT(VARCHAR(16), SESSION_CONTEXT(N''region''))';
-PRINT '              OR IS_ROLEMEMBER(''db_owner'') = 1;';
+PRINT '              OR @region = CONVERT(VARCHAR(16), SESSION_CONTEXT(N''region''));';
 PRINT 'GO';
 PRINT 'CREATE SECURITY POLICY Security.rls_players';
 PRINT '    ADD FILTER PREDICATE Security.fn_players_region_predicate(region) ON dbo.players';

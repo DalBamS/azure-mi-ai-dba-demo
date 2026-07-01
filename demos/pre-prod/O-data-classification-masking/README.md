@@ -23,7 +23,7 @@
 6. 데모 후 `05_rollback.sql`로 전량 원복.
 
 ## 안전 설계 포인트
-- **RLS 안전 술어**: `SESSION_CONTEXT('region')`가 없으면(서비스/관리 세션) 전체 허용, 설정된 경우에만 해당 region 행으로 제한 → **부하 드라이버/타 데모에 무영향**. `db_owner` 예외 포함.
+- **RLS 안전 술어**: `SESSION_CONTEXT('region')`가 없으면(서비스/관리 세션) 전체 허용, 설정된 경우에만 해당 region 행으로 제한 → **부하 드라이버/타 데모에 무영향**. 데모에서 필터가 실제로 관찰되도록 `db_owner` 예외는 두지 않음(admin으로 실행해도 컨텍스트 설정 시 필터 적용). 운영 적용 시에는 필요에 따라 관리 계정 예외를 추가할 수 있음.
 - **DDM**은 `UNMASK` 권한 없는 사용자에게만 가려짐 — 관리자/서비스 계정 조회는 그대로.
 - 모든 생성물은 `05_rollback.sql`로 정리(운영팩 일관성).
 
@@ -44,7 +44,7 @@
 
 ## Eval 기준
 - `04_eval.sql`: 분류 3건 이상, `players.email/username` 마스크 존재, `Security.rls_players` 정책이 STATE=ON.
-- RLS 동작: 컨텍스트 미설정 = 전체 행, region 설정 = 축소, 리셋 = 복원 → `PASS`.
+- RLS 동작: 컨텍스트 미설정 = 전체 행(`@all`), region='KR' 설정 = 실제 축소(`@kr = KR행수 < @all`), 리셋 = 복원(`@reset = @all`) → `PASS`. `@kr = @all`이면 필터가 관찰되지 않은 것(NO-OP)으로 표시되어 조용한 통과를 막음. 저권한 유저 또는 `EXECUTE AS USER`로 시연하면 더 분명. (시드 region: KR/JP/NA/EU/SEA)
 
 ## 정리(cleanup)
 - `05_rollback.sql`로 정책·함수·스키마·마스크·분류·선택 테이블 전량 원복.
