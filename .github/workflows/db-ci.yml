@@ -93,7 +93,8 @@ jobs:
             if [[ ! -f "$down" ]]; then echo "::error file=$up::롤백 스크립트 누락: $down"; fail=1; fi
           done
           # 파괴적 구문은 리뷰(데모 J) 대상 — 마이그레이션 폴더에서는 경고.
-          if grep -RniE "DROP\s+TABLE|TRUNCATE\s+TABLE" "$dir"; then
+          # 주석 라인(-- ...)은 오탐이므로 제외하고 검사한다.
+          if grep -RniE "DROP\s+TABLE|TRUNCATE\s+TABLE" "$dir" | grep -vE ':[0-9]+:[[:space:]]*--'; then
             echo "::warning::마이그레이션에 파괴적 구문 감지 — 데이터 손실 검토 필요"
           fi
           exit $fail
