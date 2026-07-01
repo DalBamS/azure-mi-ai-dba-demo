@@ -61,7 +61,7 @@ Copy-Item .env.example .env
 .\scripts\enable-querystore.ps1   # apply-schema.ps1에도 포함됨
 ```
 
-- Query Store는 E(부하 시나리오 합성)와 F(캡처/리플레이 회귀)의 관측 근거입니다. 신규 스크립트는 [`scripts\enable-querystore.ps1`](../scripts/enable-querystore.ps1)를 참고하세요.
+- Query Store는 E(부하 시나리오 합성)와 F(캡처/리플레이 회귀)의 관측 근거입니다. 신규 스크립트는 [`.\scripts\enable-querystore.ps1`](../scripts/enable-querystore.ps1)를 참고하세요.
 - `apply-schema.ps1`를 이미 실행했다면 같은 설정이 적용되어 있으며, 위 명령은 QS만 다시 보장/확인할 때 사용합니다.
 
 ## 5. 시드 적재

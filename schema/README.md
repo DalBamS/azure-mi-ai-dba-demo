@@ -24,7 +24,7 @@
 현실적 규모의 **파라미터화 시드 생성** 스크립트.
 - 정규 실행 방법: `.\scripts\seed.ps1 -Profile default|smoke`. 문서와 발표에서는 `SEED_PROFILE=` 환경변수 표기 대신 이 형식을 사용합니다.
 - 프로파일: `default`(대규모), `smoke`(로컬 스모크 테스트).
-- 규모는 환경변수/인자로 조절 (`SEED_PLAYERS`, `SEED_ITEMS_PER_PLAYER`, `SEED_MATCHES`).
+- 규모 세부값은 명시적 인자(`-Players`, `-ItemsPerPlayer`, `-Matches`)로 조절합니다.
 
 | 데모 | 권장 시드 규모 | 이유 |
 |------|----------------|------|
