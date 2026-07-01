@@ -1,0 +1,29 @@
+{
+  "$comment": "azure-mi-ai-dba-demo — MCP server config EXAMPLE. Copy to mcp.config.json (git-ignored) and fill via env vars. NO secrets/connection strings hardcoded. Principle: READ-ONLY diagnostics; state changes require human approval via a separate path.",
+  "servers": {
+    "mssql": {
+      "$comment": "VS Code mssql extension / MCP for read-only DB metadata & DMV queries against the game DB.",
+      "command": "npx",
+      "args": ["-y", "@microsoft/mssql-mcp"],
+      "env": {
+        "MSSQL_SERVER": "${env:SQLMI_SERVER}",
+        "MSSQL_DATABASE": "${env:SQLMI_DATABASE}",
+        "MSSQL_AUTHENTICATION": "${env:AUTH_MODE}",
+        "MSSQL_READONLY": "true"
+      }
+    },
+    "azure": {
+      "$comment": "Azure MCP (microsoft/mcp) for Log Analytics, Defender for SQL, resource metadata. Auth via az login / managed identity (DefaultAzureCredential).",
+      "command": "npx",
+      "args": ["-y", "@azure/mcp"],
+      "env": {
+        "AZURE_SUBSCRIPTION_ID": "${env:AZURE_SUBSCRIPTION_ID}"
+      }
+    }
+  },
+  "policy": {
+    "readOnly": true,
+    "writeRequiresApproval": true,
+    "notes": "Diagnosis/inspection is read-only. Any DDL/DML (index create, plan guide, config change) is proposed as a script and applied only after explicit human approval."
+  }
+}

@@ -1,0 +1,6 @@
+# azure-mi-ai-dba-demo — game load driver (Python)
+pyodbc>=5.1
+python-dotenv>=1.0
+# AAD auth + Key Vault secret resolution (used when AUTH_MODE is aad-* / KEYVAULT_NAME set)
+azure-identity>=1.17
+azure-keyvault-secrets>=4.8
