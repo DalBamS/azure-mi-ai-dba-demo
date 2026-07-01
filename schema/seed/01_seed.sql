@@ -5,9 +5,9 @@
    Scale  : Parameterized via SQLCMD variables. Defaults below (:setvar) are
             used for a direct `sqlcmd -i` run; the wrapper (scripts\seed.ps1)
             overrides them with `-v` (which takes precedence over :setvar).
-   Safety : Idempotent-ish — seeds ONLY when dbo.players is empty, unless you
-            pass -v Force=1. Assumes fresh IDENTITY (player_id = 1..N) when
-            seeding child tables. To re-seed, truncate first (see seed.ps1 -Reset).
+   Safety : Idempotent-ish — each table batch skips when that table already
+            contains data and Force=0. To re-seed cleanly, use seed.ps1 -Reset.
+            Assumes fresh IDENTITY (player_id = 1..N) when seeding child tables.
    Profiles (set by scripts\seed.ps1 from SEED_PROFILE):
        default : SeedPlayers=100000 ItemsPerPlayer=20 Matches=200000
        smoke   : SeedPlayers=1000   ItemsPerPlayer=10 Matches=5000
@@ -31,7 +31,7 @@ DECLARE @force          BIT      = CONVERT(BIT, N'$(Force)');
 
 IF EXISTS (SELECT 1 FROM dbo.players) AND @force = 0
 BEGIN
-    PRINT 'Seed skipped: dbo.players already contains data. Pass -v Force=1 (or seed.ps1 -Reset) to re-seed.';
+    PRINT '  players skipped: table already contains data. Use seed.ps1 -Reset to re-seed.';
     RETURN;
 END;
 
@@ -60,6 +60,14 @@ GO
 
 /* currency_ledger — 3 currency types per player (updatable balances) */
 DECLARE @players INT = (SELECT COUNT(*) FROM dbo.players);
+DECLARE @force BIT = CONVERT(BIT, N'$(Force)');
+
+IF EXISTS (SELECT 1 FROM dbo.currency_ledger) AND @force = 0
+BEGIN
+    PRINT '  currency_ledger skipped: table already contains data.';
+    RETURN;
+END;
+
 ;WITH L0 AS (SELECT c FROM (VALUES(1),(1),(1),(1),(1),(1),(1),(1),(1),(1)) v(c)),
       L1 AS (SELECT 1 c FROM L0 a CROSS JOIN L0 b),
       L2 AS (SELECT 1 c FROM L1 a CROSS JOIN L1 b),
@@ -76,6 +84,14 @@ GO
 /* inventory — item_id 1..ItemsPerPlayer per player (hot table) */
 DECLARE @players INT = (SELECT COUNT(*) FROM dbo.players);
 DECLARE @itemsPerPlayer INT = CONVERT(INT, N'$(SeedItemsPerPlayer)');
+DECLARE @force BIT = CONVERT(BIT, N'$(Force)');
+
+IF EXISTS (SELECT 1 FROM dbo.inventory) AND @force = 0
+BEGIN
+    PRINT '  inventory skipped: table already contains data.';
+    RETURN;
+END;
+
 ;WITH L0 AS (SELECT c FROM (VALUES(1),(1),(1),(1),(1),(1),(1),(1),(1),(1)) v(c)),
       L1 AS (SELECT 1 c FROM L0 a CROSS JOIN L0 b),
       L2 AS (SELECT 1 c FROM L1 a CROSS JOIN L1 b),
@@ -92,6 +108,14 @@ GO
 /* matches — one participation row per match (match_id = n) */
 DECLARE @players INT = (SELECT COUNT(*) FROM dbo.players);
 DECLARE @matches INT = CONVERT(INT, N'$(SeedMatches)');
+DECLARE @force BIT = CONVERT(BIT, N'$(Force)');
+
+IF EXISTS (SELECT 1 FROM dbo.matches) AND @force = 0
+BEGIN
+    PRINT '  matches skipped: table already contains data.';
+    RETURN;
+END;
+
 ;WITH L0 AS (SELECT c FROM (VALUES(1),(1),(1),(1),(1),(1),(1),(1),(1),(1)) v(c)),
       L1 AS (SELECT 1 c FROM L0 a CROSS JOIN L0 b),
       L2 AS (SELECT 1 c FROM L1 a CROSS JOIN L1 b),
@@ -113,6 +137,14 @@ GO
 
 /* leaderboard — derived aggregate per player for the season */
 DECLARE @season SMALLINT = CONVERT(SMALLINT, N'$(SeedSeason)');
+DECLARE @force BIT = CONVERT(BIT, N'$(Force)');
+
+IF EXISTS (SELECT 1 FROM dbo.leaderboard) AND @force = 0
+BEGIN
+    PRINT '  leaderboard skipped: table already contains data.';
+    RETURN;
+END;
+
 INSERT dbo.leaderboard (season, player_id, rating, wins, losses, rank_pos)
 SELECT @season,
        m.player_id,

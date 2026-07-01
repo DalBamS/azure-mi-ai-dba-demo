@@ -17,10 +17,29 @@ function Import-DotEnv {
         $idx = $line.IndexOf('=')
         if ($idx -lt 1) { return }
         $key = $line.Substring(0, $idx).Trim()
-        $val = $line.Substring($idx + 1).Trim().Trim('"')
+        $val = Remove-DotEnvInlineComment $line.Substring($idx + 1)
         [Environment]::SetEnvironmentVariable($key, $val, 'Process')
     }
     Write-Verbose "Loaded environment from $Path"
+}
+
+function Remove-DotEnvInlineComment {
+    param([string] $Value)
+
+    $inSingleQuote = $false
+    $inDoubleQuote = $false
+    for ($i = 0; $i -lt $Value.Length; $i++) {
+        $ch = $Value[$i]
+        if ($ch -eq "'" -and -not $inDoubleQuote) {
+            $inSingleQuote = -not $inSingleQuote
+        } elseif ($ch -eq '"' -and -not $inSingleQuote) {
+            $inDoubleQuote = -not $inDoubleQuote
+        } elseif ($ch -eq '#' -and -not $inSingleQuote -and -not $inDoubleQuote) {
+            return $Value.Substring(0, $i).Trim().Trim('"').Trim("'")
+        }
+    }
+
+    return $Value.Trim().Trim('"').Trim("'")
 }
 
 function Get-KeyVaultSecret {
