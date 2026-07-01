@@ -24,12 +24,14 @@
 현실적 규모의 **파라미터화 시드 생성** 스크립트.
 - 정규 실행 방법: `.\scripts\seed.ps1 -Profile default|smoke`. 문서와 발표에서는 `SEED_PROFILE=` 환경변수 표기 대신 이 형식을 사용합니다.
 - 프로파일: `default`(대규모), `smoke`(로컬 스모크 테스트).
-- 규모는 환경변수/인자로 조절 (`SEED_PLAYERS`, `SEED_ITEMS_PER_PLAYER`, `SEED_MATCHES`).
+- 규모 세부값은 필요할 때 명시적 인자(`-Players`, `-ItemsPerPlayer`, `-Matches`)로 조절합니다.
 
 | 데모 | 권장 시드 규모 | 이유 |
 |------|----------------|------|
 | [A 느린 쿼리·인덱스](../demos/runtime/A-slow-query-index/README.md) | `.\scripts\seed.ps1 -Profile default` 권장 | leaderboard 스캔/Seek 차이를 체감 가능한 구조적 근거로 보여주기 쉬움 |
 | [C Plan regression](../demos/runtime/C-plan-regression/README.md) | `.\scripts\seed.ps1 -Profile default` 권장 | 작은 smoke 규모에서는 파라미터별 plan이 갈리지 않을 수 있음 |
 | 나머지 데모(B/E/F/G/O/I/J/K/M) | `.\scripts\seed.ps1 -Profile smoke`로 충분 | 기능 검증·런북 시연에는 빠른 smoke 규모가 충분하며, 필요 시 default로 확장 |
+
+A/C의 규모 민감성 근거는 링크된 각 데모 README의 주석을 참고하세요.
 
 자세한 실행은 리포지토리 루트 `README.md`의 런북을 참고하세요.

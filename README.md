@@ -109,4 +109,4 @@ sqlcmd @(& { . .\scripts\lib.ps1; Import-DotEnv; Get-SqlcmdArgs }) -i issue-inje
 - **발표 스토리보드**: [`docs/presentation/storyboard.md`](docs/presentation/storyboard.md) (라이브 MI 실측 근거 기반, 운영 A·B·O 중심 3막).
 
 ## 다음 단계
-데모 구현은 완료되어 있습니다. 라이프사이클별 실행 순서는 [`demos/README.md`](demos/README.md)에서 고르고, 남은 작업은 라이브 리허설과 발표 후 임시 네트워크/접속 경로 정리입니다.
+데모 구현은 완료되어 있습니다. 라이프사이클별 실행 순서는 [`demos/README.md`](demos/README.md)와 [`docs/demo-roadmap.md`](docs/demo-roadmap.md)에서 고르고, 남은 작업은 라이브 리허설과 발표 후 임시 NSG 3342 규칙 정리입니다.

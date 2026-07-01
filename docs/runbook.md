@@ -10,7 +10,7 @@
 
 ```mermaid
 flowchart LR
-    A["0. 사전준비"] --> B["1. 비밀/접속 구성"] --> C["2. (보류) 인프라"] --> D["3. 스키마"] --> E["4. Query Store"] --> F["5. 시드"] --> G["6. 상시 부하"] --> H["7. 데모 실행"] --> I["8. 정리"]
+    A["0. 사전준비"] --> B["1. 비밀/접속 구성"] --> C["2. (보류) 인프라"] --> D["3. 스키마"] --> E["4. 시드"] --> F["5. 상시 부하"] --> G["6. 데모 실행"] --> H["7. 정리"]
 ```
 
 > 발표 때 환경 구성 자체는 데모하지 않지만, 실제 운영처럼 트랜잭션이 흐르고 이슈를 재현할 수 있어야 합니다. 아래 순서로 한 번 세팅해 둡니다.
@@ -55,7 +55,7 @@ Copy-Item .env.example .env
 
 - 게임 스키마: `players`, `inventory`(핫), `currency_ledger`(동시성 경합), `matches`, `leaderboard`(랭킹). 상세는 [`schema/README.md`](../schema/README.md).
 
-## 4. Query Store 활성화
+## 3.5 Query Store 활성화
 
 ```powershell
 .\scripts\enable-querystore.ps1   # apply-schema.ps1에도 포함됨
@@ -64,7 +64,7 @@ Copy-Item .env.example .env
 - Query Store는 E(부하 시나리오 합성)와 F(캡처/리플레이 회귀)의 관측 근거입니다. 신규 스크립트는 [`scripts\enable-querystore.ps1`](../scripts/enable-querystore.ps1)를 참고하세요.
 - `apply-schema.ps1`를 이미 실행했다면 같은 설정이 적용되어 있으며, 위 명령은 QS만 다시 보장/확인할 때 사용합니다.
 
-## 5. 시드 적재
+## 4. 시드 적재
 
 ```powershell
 .\scripts\seed.ps1 -Profile smoke     # 로컬 검증(1,000 players)
@@ -75,7 +75,7 @@ Copy-Item .env.example .env
 - `smoke`는 빠른 검증용, default는 데모 규모입니다. A/C 데모는 규모에 민감하니 재현이 필요하면 default 규모를 사용하세요.
 - 시드 구성/규모 변수는 [`schema/README.md`](../schema/README.md)를 참고하세요.
 
-## 6. 상시 부하 드라이버 (계층형)
+## 5. 상시 부하 드라이버 (계층형)
 
 실제 운영처럼 트랜잭션이 흐르도록 부하를 걸어 둡니다. 필요에 따라 계층을 선택합니다.
 
@@ -95,7 +95,7 @@ python driver.py                       # Ctrl+C 까지
 
 - 부하 계층 구성/파라미터는 [`workload/README.md`](../workload/README.md) 및 각 하위 README를 참고하세요.
 
-## 7. 데모별 실행
+## 6. 데모별 실행
 
 각 데모는 폴더의 번호순 스크립트(`01_* → 02_* → eval → 04_* → rollback`)를 따릅니다. 라이프사이클별 매핑과 경로는 [로드맵](./demo-roadmap.md)을 참고하세요.
 
@@ -112,7 +112,7 @@ sqlcmd @(& { . .\scripts\lib.ps1; Import-DotEnv; Get-SqlcmdArgs }) -i issue-inje
 - **AI 라이브 연결**로 진단하려면 VS Code `mssql` 확장 에이전트 모드(Entra 읽기전용)로 붙습니다 — 단계별 절차는 [`mcp/LIVE-AGENT-SETUP.md`](../mcp/LIVE-AGENT-SETUP.md), 서버 구성은 [`mcp/README.md`](../mcp/README.md)를 참고하세요(여기서 중복하지 않습니다).
 - ⚠️ #6(SQL Injection, 데모 M)·tempdb·런어웨이 쿼리 등 인스턴스 레벨 데모는 **격리/전용 MI에서만**([보안](./security.md)).
 
-## 8. 정리 (cleanup)
+## 7. 정리 (cleanup)
 
 - 각 데모의 `05_rollback.sql`/`05_cleanup.sql`로 생성 객체·정책을 원복합니다.
 - 이슈 주입은 대응 `*.rollback.sql`로 되돌립니다.
