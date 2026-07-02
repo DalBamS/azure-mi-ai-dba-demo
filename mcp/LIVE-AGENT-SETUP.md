@@ -79,14 +79,62 @@ Invoke-Sqlcmd -ServerInstance "<your-mi>.public.<dns-zone>.database.windows.net,
 > [!WARNING]
 > npm 버전은 빠르게 바뀝니다. 데모 직전 `npm view <pkg> version`으로 재확인합니다. 기준은 [README](./README.md)를 따릅니다.
 
-## 6. 안전/가드레일 체크리스트
+## 6. 추론 엔드포인트 연결 (SLM/LLM, 자체호스팅/로컬)
+
+MCP가 **데이터**(읽기전용)를 붙이는 계층이라면, 추론 엔드포인트는 **모델**을 붙이는 계층입니다. 근거 수집(MCP) 뒤 해석·리포트 단계에서 SLM/LLM 엔드포인트를 호출합니다. "무엇·왜"는 [README](./README.md)의 추론 엔드포인트 절, 여기는 "어떻게"입니다.
+
+> [!IMPORTANT]
+> 엔드포인트 URL·API 키는 **환경변수만** 씁니다(`.env` git-ignored / Key Vault). 코드·config·이 문서에 실값을 넣지 않습니다. 아래는 전부 localhost 플레이스홀더입니다.
+
+1. env 주입(예: 자체호스팅 OpenAI 호환 게이트웨이 또는 로컬 런타임).
+   ```powershell
+   # SLM (경계 안 로컬): Foundry Local / Ollama
+   $env:SLM_ENDPOINT = 'http://localhost:5273/v1/chat/completions'   # OpenAI 호환 예시
+   $env:SLM_MODEL    = 'phi-4-mini'
+
+   # LLM (해석/리포트): 자체호스팅=경계 안 / 클라우드=경계 밖 (요건에 맞게 택1)
+   $env:LLM_ENDPOINT = 'http://localhost:5273/v1/chat/completions'   # 자체호스팅 예시(플레이스홀더)
+   $env:LLM_API_KEY  = '<optional-endpoint-key>'                      # 필요 시에만, env로만
+   $env:LLM_MODEL    = '<model-name>'
+   ```
+2. 엔드포인트 헬스 스모크 테스트(OpenAI 호환 형태).
+   ```powershell
+   $headers = @{}
+   if ($env:LLM_API_KEY) { $headers['Authorization'] = "Bearer $($env:LLM_API_KEY)" }
+   $body = @{ model = $env:LLM_MODEL; messages = @(@{ role='user'; content='ping' }); stream = $false } | ConvertTo-Json -Depth 6
+   Invoke-RestMethod -Uri $env:LLM_ENDPOINT -Method Post -Headers $headers -Body $body -ContentType 'application/json'
+   ```
+3. 데모 스크립트가 이 env를 그대로 소비합니다.
+   - SLM 배치 린트: `demos/pre-prod/G-sql-preflight-lint/run_batch_lint.ps1` (`SLM_ENDPOINT`/`SLM_API_KEY`).
+   - 회귀 리포트: `demos/pre-prod/F-capture-replay-regression/generate_ai_report.ps1` (`LLM_ENDPOINT`/`LLM_API_KEY`/`LLM_MODEL`).
+
+> **경계 원칙**: 스키마/PII/코드가 프롬프트에 들어가는 작업은 **경계 안 엔드포인트**(로컬 SLM 또는 자체호스팅 게이트웨이)를 우선합니다. 클라우드 엔드포인트는 민감 데이터가 없거나 계약·네트워크로 경계가 보장될 때만 env로 전환합니다.
+
+### (선택) Azure AI Foundry 관리형 엔드포인트
+
+자체호스팅 게이트웨이 대신 **Azure AI Foundry에서 키를 발급받아** LLM을 쓰는 경로입니다(위 자체호스팅 예시와 **택1**, 전부 플레이스홀더).
+
+1. Azure AI Foundry 포털에서 **프로젝트/허브 생성**(자체 구독/테넌트/리전).
+2. **모델 배포**(예: GPT‑4o mini 등).
+3. 배포의 **Endpoint URL**과 **API Key** 확인.
+4. env로 주입:
+   ```powershell
+   $env:LLM_ENDPOINT = 'https://<your-foundry>.services.ai.azure.com/...'   # 포털의 Endpoint URL
+   $env:LLM_API_KEY  = '<from-portal>'                                       # 포털의 API Key, env로만
+   $env:LLM_MODEL    = '<your-deployment-name>'
+   ```
+
+> 프롬프트·데이터가 **내 구독/테넌트/리전 안에 머물고 모델 학습에 사용되지 않으며**, 프라이빗 네트워킹을 붙이면 **경계 안(옵션)** 으로도 운용할 수 있습니다. 리소스명/키/URL은 자리표시자로만 두고 실값은 `.env`(git-ignored)/Key Vault에 둡니다.
+
+## 7. 안전/가드레일 체크리스트
 
 - [ ] 진단은 읽기전용 계정/최소권한. 변경(DDL/DML)은 스크립트 제안 -> 사람 승인 -> 적용.
 - [ ] config에 커넥션스트링/비밀 하드코딩 금지(env/Key Vault).
+- [ ] 추론 엔드포인트 URL/키도 env/Key Vault만. 민감 데이터가 오가면 경계 안 엔드포인트 우선.
 - [ ] NSG 3342 임시 규칙은 단일 IP/32, 데모 후 삭제.
 - [ ] 공유 MI면 인스턴스 레벨 데모(Defender 알림 등)는 격리/전용 환경에서만.
 
-## 7. 정리(데모 후)
+## 8. 정리(데모 후)
 
 ```powershell
 az network nsg rule delete -g <resource-group> --nsg-name <nsg-name> -n allow_public_endpoint_3342_democlient

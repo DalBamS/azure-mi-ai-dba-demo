@@ -31,13 +31,14 @@
 | `02_replay.md` | 리플레이 방법(game-driver 재실행 / ostress·RML / Distributed Replay) |
 | `03_compare_waits.sql` | (읽기전용) baseline vs replay 구간의 쿼리 duration·reads·wait-category delta |
 | `04_ai_report.md` | 03 결과 → 자연어 회귀 리포트 생성 프롬프트/형식 |
+| `generate_ai_report.ps1` | 04 템플릿을 감싼 헬퍼: 내보낸 03 결과 파일 → 추론 엔드포인트 호출 → 회귀 리포트(md) 생성 (엔드포인트/키는 환경변수만, 비밀 하드코딩 없음) |
 | `05_cleanup.sql` | 캡처 XEvents 세션 제거 |
 
 ## 발표 흐름
 1. `01_capture.sql`로 캡처 세션을 켜고, baseline 부하(game-driver)를 흘린다. **baseline 시작/종료 UTC 시각을 기록**한다.
 2. `02_replay.md`대로 **대상 티어/버전**에 동일 부하를 리플레이한다(E의 결정적 프로파일 재사용 권장). **replay 시작/종료 UTC 시각을 기록**한다.
 3. `03_compare_waits.sql`의 4개 UTC 변수(`@base_start`/`@base_end`/`@replay_start`/`@replay_end`)를 채워 실행 → 회귀 상위 쿼리와 대기유형 변화를 본다.
-4. AI 하네스가 `04_ai_report.md` 템플릿으로 **자연어 회귀 리포트 + 배포 권고**를 생성.
+4. AI 하네스가 `04_ai_report.md` 템플릿(또는 이를 감싼 `generate_ai_report.ps1`)으로 **자연어 회귀 리포트 + 배포 권고**를 생성. 추론 엔드포인트는 데이터 경계 요건에 따라 자체호스팅/클라우드를 선택([`mcp/README.md`](../../../mcp/README.md)).
 5. 데모 후 `05_cleanup.sql`로 캡처 세션 정리.
 
 > **UTC 구간 기록 팁**: 두 구간의 시각은 반드시 **UTC**로 기록하세요. `03_compare_waits.sql`은 `SYSUTCDATETIME()` 기준이며 Query Store의 `runtime_stats_interval.start_time`도 UTC입니다. 부하 실행 직전/직후에 아래로 현재 UTC를 찍어두면 편합니다.
