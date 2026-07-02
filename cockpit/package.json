@@ -1,0 +1,16 @@
+{
+  "name": "demo-cockpit",
+  "private": true,
+  "version": "0.1.0",
+  "description": "데모 조종석 GUI — control panel over the azure-mi-ai-dba-demo scenarios (mock-first, read-only).",
+  "workspaces": [
+    "server"
+  ],
+  "scripts": {
+    "manifest": "npm run manifest --workspace server",
+    "selftest": "npm run selftest --workspace server",
+    "dev:server": "npm run dev --workspace server",
+    "dev:web": "npm run dev --workspace web",
+    "build": "npm run build --workspace server && npm run build --workspace web"
+  }
+}

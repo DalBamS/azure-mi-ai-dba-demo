@@ -1,0 +1,534 @@
+{
+  "version": 1,
+  "generatedAt": "2026-07-02T09:50:04.062Z",
+  "root": ".",
+  "demos": [
+    {
+      "id": "A",
+      "slug": "A-slow-query-index",
+      "lifecycle": "runtime",
+      "title": "A — 느린 쿼리 진단 · 인덱스 추천",
+      "path": "demos/runtime/A-slow-query-index",
+      "readme": "demos/runtime/A-slow-query-index/README.md",
+      "steps": [
+        {
+          "order": 1,
+          "id": "01_reproduce",
+          "file": "01_reproduce.sql",
+          "path": "demos/runtime/A-slow-query-index/01_reproduce.sql",
+          "kind": "sql",
+          "title": "reproduce",
+          "destructive": false,
+          "manual": false
+        },
+        {
+          "order": 2,
+          "id": "02_diagnose",
+          "file": "02_diagnose.sql",
+          "path": "demos/runtime/A-slow-query-index/02_diagnose.sql",
+          "kind": "sql",
+          "title": "diagnose",
+          "destructive": false,
+          "manual": false
+        },
+        {
+          "order": 3,
+          "id": "03_eval",
+          "file": "03_eval.sql",
+          "path": "demos/runtime/A-slow-query-index/03_eval.sql",
+          "kind": "sql",
+          "title": "eval",
+          "destructive": false,
+          "manual": false
+        },
+        {
+          "order": 4,
+          "id": "04_remediate",
+          "file": "04_remediate.sql",
+          "path": "demos/runtime/A-slow-query-index/04_remediate.sql",
+          "kind": "sql",
+          "title": "remediate",
+          "destructive": true,
+          "manual": false
+        },
+        {
+          "order": 5,
+          "id": "05_rollback",
+          "file": "05_rollback.sql",
+          "path": "demos/runtime/A-slow-query-index/05_rollback.sql",
+          "kind": "sql",
+          "title": "rollback",
+          "destructive": true,
+          "manual": false
+        }
+      ]
+    },
+    {
+      "id": "B",
+      "slug": "B-deadlock-root-cause",
+      "lifecycle": "runtime",
+      "title": "B — Deadlock 근본원인 분석",
+      "path": "demos/runtime/B-deadlock-root-cause",
+      "readme": "demos/runtime/B-deadlock-root-cause/README.md",
+      "steps": [
+        {
+          "order": 1,
+          "id": "01_observe_blocking",
+          "file": "01_observe_blocking.sql",
+          "path": "demos/runtime/B-deadlock-root-cause/01_observe_blocking.sql",
+          "kind": "sql",
+          "title": "observe blocking",
+          "destructive": false,
+          "manual": false
+        },
+        {
+          "order": 2,
+          "id": "02_deadlock_evidence",
+          "file": "02_deadlock_evidence.sql",
+          "path": "demos/runtime/B-deadlock-root-cause/02_deadlock_evidence.sql",
+          "kind": "sql",
+          "title": "deadlock evidence",
+          "destructive": false,
+          "manual": false
+        },
+        {
+          "order": 3,
+          "id": "03_eval",
+          "file": "03_eval.sql",
+          "path": "demos/runtime/B-deadlock-root-cause/03_eval.sql",
+          "kind": "sql",
+          "title": "eval",
+          "destructive": false,
+          "manual": false
+        },
+        {
+          "order": 4,
+          "id": "04_safe_pattern",
+          "file": "04_safe_pattern.sql",
+          "path": "demos/runtime/B-deadlock-root-cause/04_safe_pattern.sql",
+          "kind": "sql",
+          "title": "safe pattern",
+          "destructive": false,
+          "manual": false
+        },
+        {
+          "order": 5,
+          "id": "05_rollback",
+          "file": "05_rollback.sql",
+          "path": "demos/runtime/B-deadlock-root-cause/05_rollback.sql",
+          "kind": "sql",
+          "title": "rollback",
+          "destructive": true,
+          "manual": false
+        }
+      ]
+    },
+    {
+      "id": "C",
+      "slug": "C-plan-regression",
+      "lifecycle": "runtime",
+      "title": "C — 패치 후 Plan regression 대응",
+      "path": "demos/runtime/C-plan-regression",
+      "readme": "demos/runtime/C-plan-regression/README.md",
+      "steps": [
+        {
+          "order": 1,
+          "id": "01_reproduce",
+          "file": "01_reproduce.sql",
+          "path": "demos/runtime/C-plan-regression/01_reproduce.sql",
+          "kind": "sql",
+          "title": "reproduce",
+          "destructive": false,
+          "manual": false
+        },
+        {
+          "order": 2,
+          "id": "02_diagnose",
+          "file": "02_diagnose.sql",
+          "path": "demos/runtime/C-plan-regression/02_diagnose.sql",
+          "kind": "sql",
+          "title": "diagnose",
+          "destructive": false,
+          "manual": false
+        },
+        {
+          "order": 3,
+          "id": "03_eval",
+          "file": "03_eval.sql",
+          "path": "demos/runtime/C-plan-regression/03_eval.sql",
+          "kind": "sql",
+          "title": "eval",
+          "destructive": false,
+          "manual": false
+        },
+        {
+          "order": 4,
+          "id": "04_remediate",
+          "file": "04_remediate.sql",
+          "path": "demos/runtime/C-plan-regression/04_remediate.sql",
+          "kind": "sql",
+          "title": "remediate",
+          "destructive": true,
+          "manual": false
+        },
+        {
+          "order": 5,
+          "id": "05_rollback",
+          "file": "05_rollback.sql",
+          "path": "demos/runtime/C-plan-regression/05_rollback.sql",
+          "kind": "sql",
+          "title": "rollback",
+          "destructive": true,
+          "manual": false
+        }
+      ]
+    },
+    {
+      "id": "M",
+      "slug": "M-sql-injection",
+      "lifecycle": "runtime",
+      "title": "M — SQL Injection 탐지 · 진단",
+      "path": "demos/runtime/M-sql-injection",
+      "readme": "demos/runtime/M-sql-injection/README.md",
+      "steps": [
+        {
+          "order": 1,
+          "id": "01_reproduce",
+          "file": "01_reproduce.sql",
+          "path": "demos/runtime/M-sql-injection/01_reproduce.sql",
+          "kind": "sql",
+          "title": "reproduce",
+          "destructive": false,
+          "manual": false
+        },
+        {
+          "order": 2,
+          "id": "02_diagnose",
+          "file": "02_diagnose.sql",
+          "path": "demos/runtime/M-sql-injection/02_diagnose.sql",
+          "kind": "sql",
+          "title": "diagnose",
+          "destructive": false,
+          "manual": false
+        },
+        {
+          "order": 3,
+          "id": "03_eval",
+          "file": "03_eval.sql",
+          "path": "demos/runtime/M-sql-injection/03_eval.sql",
+          "kind": "sql",
+          "title": "eval",
+          "destructive": false,
+          "manual": false
+        },
+        {
+          "order": 4,
+          "id": "04_remediate",
+          "file": "04_remediate.sql",
+          "path": "demos/runtime/M-sql-injection/04_remediate.sql",
+          "kind": "sql",
+          "title": "remediate",
+          "destructive": true,
+          "manual": false
+        },
+        {
+          "order": 5,
+          "id": "05_rollback",
+          "file": "05_rollback.sql",
+          "path": "demos/runtime/M-sql-injection/05_rollback.sql",
+          "kind": "sql",
+          "title": "rollback",
+          "destructive": true,
+          "manual": false
+        }
+      ]
+    },
+    {
+      "id": "E",
+      "slug": "E-load-scenario-synthesis",
+      "lifecycle": "pre-prod",
+      "title": "E — AI 부하 시나리오 합성",
+      "path": "demos/pre-prod/E-load-scenario-synthesis",
+      "readme": "demos/pre-prod/E-load-scenario-synthesis/README.md",
+      "steps": [
+        {
+          "order": 1,
+          "id": "01_capture_top_queries",
+          "file": "01_capture_top_queries.sql",
+          "path": "demos/pre-prod/E-load-scenario-synthesis/01_capture_top_queries.sql",
+          "kind": "sql",
+          "title": "capture top queries",
+          "destructive": false,
+          "manual": false
+        },
+        {
+          "order": 2,
+          "id": "02_synthesize_profile",
+          "file": "02_synthesize_profile.py",
+          "path": "demos/pre-prod/E-load-scenario-synthesis/02_synthesize_profile.py",
+          "kind": "py",
+          "title": "synthesize profile",
+          "destructive": false,
+          "manual": false
+        },
+        {
+          "order": 3,
+          "id": "03_eval",
+          "file": "03_eval.sql",
+          "path": "demos/pre-prod/E-load-scenario-synthesis/03_eval.sql",
+          "kind": "sql",
+          "title": "eval",
+          "destructive": false,
+          "manual": false
+        }
+      ]
+    },
+    {
+      "id": "F",
+      "slug": "F-capture-replay-regression",
+      "lifecycle": "pre-prod",
+      "title": "F — 워크로드 캡처 → 리플레이 회귀 검증",
+      "path": "demos/pre-prod/F-capture-replay-regression",
+      "readme": "demos/pre-prod/F-capture-replay-regression/README.md",
+      "steps": [
+        {
+          "order": 0,
+          "id": "generate_ai_report",
+          "file": "generate_ai_report.ps1",
+          "path": "demos/pre-prod/F-capture-replay-regression/generate_ai_report.ps1",
+          "kind": "ps1",
+          "title": "generate ai report",
+          "destructive": false,
+          "manual": false
+        },
+        {
+          "order": 1,
+          "id": "01_capture",
+          "file": "01_capture.sql",
+          "path": "demos/pre-prod/F-capture-replay-regression/01_capture.sql",
+          "kind": "sql",
+          "title": "capture",
+          "destructive": false,
+          "manual": false
+        },
+        {
+          "order": 2,
+          "id": "02_replay",
+          "file": "02_replay.md",
+          "path": "demos/pre-prod/F-capture-replay-regression/02_replay.md",
+          "kind": "md",
+          "title": "replay",
+          "destructive": false,
+          "manual": true
+        },
+        {
+          "order": 3,
+          "id": "03_compare_waits",
+          "file": "03_compare_waits.sql",
+          "path": "demos/pre-prod/F-capture-replay-regression/03_compare_waits.sql",
+          "kind": "sql",
+          "title": "compare waits",
+          "destructive": false,
+          "manual": false
+        },
+        {
+          "order": 4,
+          "id": "04_ai_report",
+          "file": "04_ai_report.md",
+          "path": "demos/pre-prod/F-capture-replay-regression/04_ai_report.md",
+          "kind": "md",
+          "title": "ai report",
+          "destructive": false,
+          "manual": true
+        },
+        {
+          "order": 5,
+          "id": "05_cleanup",
+          "file": "05_cleanup.sql",
+          "path": "demos/pre-prod/F-capture-replay-regression/05_cleanup.sql",
+          "kind": "sql",
+          "title": "cleanup",
+          "destructive": true,
+          "manual": false
+        }
+      ]
+    },
+    {
+      "id": "G",
+      "slug": "G-sql-preflight-lint",
+      "lifecycle": "pre-prod",
+      "title": "G — 배포 전 SQL Pre-flight 정적검증 (SLM)",
+      "path": "demos/pre-prod/G-sql-preflight-lint",
+      "readme": "demos/pre-prod/G-sql-preflight-lint/README.md",
+      "steps": [
+        {
+          "order": 0,
+          "id": "00_sample_bad_sql",
+          "file": "00_sample_bad_sql.sql",
+          "path": "demos/pre-prod/G-sql-preflight-lint/00_sample_bad_sql.sql",
+          "kind": "sql",
+          "title": "sample bad sql",
+          "destructive": false,
+          "manual": false
+        },
+        {
+          "order": 0,
+          "id": "run_batch_lint",
+          "file": "run_batch_lint.ps1",
+          "path": "demos/pre-prod/G-sql-preflight-lint/run_batch_lint.ps1",
+          "kind": "ps1",
+          "title": "run batch lint",
+          "destructive": false,
+          "manual": false
+        },
+        {
+          "order": 1,
+          "id": "01_collect_objects",
+          "file": "01_collect_objects.sql",
+          "path": "demos/pre-prod/G-sql-preflight-lint/01_collect_objects.sql",
+          "kind": "sql",
+          "title": "collect objects",
+          "destructive": false,
+          "manual": false
+        },
+        {
+          "order": 2,
+          "id": "02_lint_rules",
+          "file": "02_lint_rules.md",
+          "path": "demos/pre-prod/G-sql-preflight-lint/02_lint_rules.md",
+          "kind": "md",
+          "title": "lint rules",
+          "destructive": false,
+          "manual": true
+        },
+        {
+          "order": 3,
+          "id": "03_run_slm_lint",
+          "file": "03_run_slm_lint.md",
+          "path": "demos/pre-prod/G-sql-preflight-lint/03_run_slm_lint.md",
+          "kind": "md",
+          "title": "run slm lint",
+          "destructive": false,
+          "manual": true
+        },
+        {
+          "order": 4,
+          "id": "04_eval",
+          "file": "04_eval.sql",
+          "path": "demos/pre-prod/G-sql-preflight-lint/04_eval.sql",
+          "kind": "sql",
+          "title": "eval",
+          "destructive": false,
+          "manual": false
+        },
+        {
+          "order": 5,
+          "id": "05_rollback",
+          "file": "05_rollback.sql",
+          "path": "demos/pre-prod/G-sql-preflight-lint/05_rollback.sql",
+          "kind": "sql",
+          "title": "rollback",
+          "destructive": true,
+          "manual": false
+        }
+      ]
+    },
+    {
+      "id": "O",
+      "slug": "O-data-classification-masking",
+      "lifecycle": "pre-prod",
+      "title": "O — [보안 플래그십] 민감정보 자동분류 + 마스킹/RLS 정책 생성",
+      "path": "demos/pre-prod/O-data-classification-masking",
+      "readme": "demos/pre-prod/O-data-classification-masking/README.md",
+      "steps": [
+        {
+          "order": 0,
+          "id": "00_optional_payment_table",
+          "file": "00_optional_payment_table.sql",
+          "path": "demos/pre-prod/O-data-classification-masking/00_optional_payment_table.sql",
+          "kind": "sql",
+          "title": "optional payment table",
+          "destructive": false,
+          "manual": false
+        },
+        {
+          "order": 1,
+          "id": "01_classify",
+          "file": "01_classify.sql",
+          "path": "demos/pre-prod/O-data-classification-masking/01_classify.sql",
+          "kind": "sql",
+          "title": "classify",
+          "destructive": false,
+          "manual": false
+        },
+        {
+          "order": 2,
+          "id": "02_recommend_policies",
+          "file": "02_recommend_policies.sql",
+          "path": "demos/pre-prod/O-data-classification-masking/02_recommend_policies.sql",
+          "kind": "sql",
+          "title": "recommend policies",
+          "destructive": false,
+          "manual": false
+        },
+        {
+          "order": 3,
+          "id": "03_apply_masking_rls",
+          "file": "03_apply_masking_rls.sql",
+          "path": "demos/pre-prod/O-data-classification-masking/03_apply_masking_rls.sql",
+          "kind": "sql",
+          "title": "apply masking rls",
+          "destructive": true,
+          "manual": false
+        },
+        {
+          "order": 4,
+          "id": "04_eval",
+          "file": "04_eval.sql",
+          "path": "demos/pre-prod/O-data-classification-masking/04_eval.sql",
+          "kind": "sql",
+          "title": "eval",
+          "destructive": false,
+          "manual": false
+        },
+        {
+          "order": 5,
+          "id": "05_rollback",
+          "file": "05_rollback.sql",
+          "path": "demos/pre-prod/O-data-classification-masking/05_rollback.sql",
+          "kind": "sql",
+          "title": "rollback",
+          "destructive": true,
+          "manual": false
+        }
+      ]
+    },
+    {
+      "id": "I",
+      "slug": "I-nl-migration",
+      "lifecycle": "cicd",
+      "title": "I — 자연어 → 마이그레이션 + 롤백 자동 생성",
+      "path": "demos/cicd/I-nl-migration",
+      "readme": "demos/cicd/I-nl-migration/README.md",
+      "steps": []
+    },
+    {
+      "id": "J",
+      "slug": "J-pr-risk-review",
+      "lifecycle": "cicd",
+      "title": "J — PR 리뷰 에이전트가 마이그레이션 위험 진단 (킬러 데모)",
+      "path": "demos/cicd/J-pr-risk-review",
+      "readme": "demos/cicd/J-pr-risk-review/README.md",
+      "steps": []
+    },
+    {
+      "id": "K",
+      "slug": "K-actions-pipeline",
+      "lifecycle": "cicd",
+      "title": "K — GitHub Actions CI 파이프라인 + AI 게이트",
+      "path": "demos/cicd/K-actions-pipeline",
+      "readme": "demos/cicd/K-actions-pipeline/README.md",
+      "steps": []
+    }
+  ]
+}
