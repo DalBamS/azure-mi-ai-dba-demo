@@ -5,6 +5,8 @@
 ## 프롬프트 템플릿
 > 다음은 baseline 대비 replay 워크로드의 Query Store 비교 결과다(문항별 duration/reads delta 표 + wait-category delta 표). 게임사 DBA가 배포 승인 판단을 하도록: (1) 유의미한 회귀가 있는지, (2) 어떤 쿼리/대기유형이 악화됐는지, (3) 가장 가능성 높은 원인 가설, (4) 배포 진행/보류 권고를 한국어로 요약하라. 근거 수치를 인용하고, 개선된 항목도 균형 있게 언급하라.
 
+> **스크립트 실행**: 이 템플릿을 반복 가능한 헬퍼로 감싼 것이 [`generate_ai_report.ps1`](./generate_ai_report.ps1)입니다. `03_compare_waits.sql`의 두 결과셋을 텍스트/CSV 파일로 내보내 넘기면 위 형식의 리포트를 생성합니다. 추론 엔드포인트·키는 **환경변수만**(`LLM_ENDPOINT`/`LLM_API_KEY`/`LLM_MODEL`), 비밀 하드코딩 없음. 엔드포인트는 데이터 경계 요건에 따라 자체호스팅(경계 안) 또는 클라우드로 둡니다([`mcp/README.md`](../../../mcp/README.md) 추론 엔드포인트 절 참고). 예: `.\generate_ai_report.ps1 -InputFile .\compare-out.txt -TargetLabel '<대상 버전/티어>'`.
+
 ## 리포트 형식(생성 결과 예시 골격)
 ```
 ## 배포 전 회귀 검증 리포트 — <대상 버전/티어>

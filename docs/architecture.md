@@ -31,17 +31,19 @@ flowchart TD
 
 이 흐름은 운영·Pre-prod·CI/CD 데모 전체가 공유하는 **공통 패턴**입니다: *자연어 → 다단계 자동 진단 → Eval → 사람 승인*.
 
-## 3. 역할 분리 — SLM / LLM / MCP
+## 3. 역할 분리 — 데이터 경계 기준 (MCP / SLM / LLM)
 
-| 계층 | 무엇 | 이 데모의 쓰임 | 왜 이 계층에 이 모델인가 |
-|------|------|----------------|--------------------------|
-| **SLM (Phi-4 로컬)**<br/>Foundry Local / Ollama | 값싼 반복·분류·추출·정적 검증 | [G SQL Pre-flight 린트](../demos/pre-prod/G-sql-preflight-lint/README.md)의 배치 린팅, PII 후보 패턴 추출, 로그/그래프에서 필드 추출 | 반복 호출이 잦고 판단이 규칙적이라 저비용·저지연이 중요. 로컬 실행이라 **코드/데이터가 외부로 나가지 않아** PII·데이터 경계를 지킴 |
-| **LLM (클라우드)** | 복잡한 해석·설명·자연어 리포트 | 데드락 그래프 해석([B](../demos/runtime/B-deadlock-root-cause/README.md)), 회귀 리포트([F](../demos/pre-prod/F-capture-replay-regression/README.md)), PR 위험 서술([J](../demos/cicd/J-pr-risk-review/README.md)) | 근거들 사이의 인과·맥락을 사람이 읽을 설명으로 엮는 고난도 작업. 빈도는 낮고 가치가 높아 클라우드 비용이 정당화됨 |
-| **MCP (읽기전용 연결)** | 안전한 도구 연결 계층 | VS Code `mssql` 확장 에이전트 모드(1순위, Entra 인증) + `@azure/mcp`(Log Analytics/Defender) | 진단은 **읽기전용**이 원칙. MCP가 최소권한 연결·근거 수집 경로를 표준화하고, 변경은 이 경로 밖(제안→승인→적용)에 둠 |
+계층을 **데이터 경계 안 → 경계 밖** 순으로 배치했습니다. 원칙은 *가능한 한 데이터를 인스턴스/네트워크 경계 안에 두고*, 경계를 넘겨야 가치가 큰 작업만 밖으로 올리는 것입니다.
 
-> **L/S 하이브리드**의 목적: 비용·지연·데이터 경계를 동시에 최적화. 값싼 반복은 로컬 SLM으로 내려 비용을 낮추고, 데이터를 인스턴스 경계 안에 두며, 복잡한 해석만 LLM으로 올립니다.
+| 계층 | 데이터 경계 | 무엇 | 이 데모의 쓰임 | 왜 이 계층에 이 모델인가 |
+|------|------------|------|----------------|--------------------------|
+| **MCP (읽기전용 연결)** | **경계 안** — 읽기전용 연결 계층 | 안전한 도구 연결 계층 | VS Code `mssql` 확장 에이전트 모드(1순위, Entra 인증) + `@azure/mcp`(Log Analytics/Defender) | 진단은 **읽기전용**이 원칙. MCP가 최소권한 연결·근거 수집 경로를 표준화하고, 변경은 이 경로 밖(제안→승인→적용)에 둠 |
+| **SLM (Phi-4 로컬)**<br/>Foundry Local / Ollama | **경계 안** — 로컬 실행 | 값싼 반복·분류·추출·정적 검증 | [G SQL Pre-flight 린트](../demos/pre-prod/G-sql-preflight-lint/README.md)의 배치 린팅, PII 후보 패턴 추출, 로그/그래프에서 필드 추출 | 반복 호출이 잦고 판단이 규칙적이라 저비용·저지연이 중요. 로컬 실행이라 **코드/데이터가 외부로 나가지 않아** PII·데이터 경계를 지킴 |
+| **LLM (추론 엔드포인트)** | **선택** — 자체호스팅=경계 안 / 클라우드=경계 밖 | 복잡한 해석·설명·자연어 리포트 | 데드락 그래프 해석([B](../demos/runtime/B-deadlock-root-cause/README.md)), 회귀 리포트([F](../demos/pre-prod/F-capture-replay-regression/README.md)), PR 위험 서술([J](../demos/cicd/J-pr-risk-review/README.md)) | 근거들 사이의 인과·맥락을 사람이 읽을 설명으로 엮는 고난도 작업. 민감 데이터가 프롬프트에 들어가면 **자체호스팅 추론 엔드포인트(경계 안, OpenAI 호환)** 로 경계를 지키고, 그렇지 않으면 클라우드 엔드포인트로 비용·성능을 최적화 |
 
-MCP 구성의 "무엇·왜"는 [`mcp/README.md`](../mcp/README.md), 라이브 연결 절차는 [`mcp/LIVE-AGENT-SETUP.md`](../mcp/LIVE-AGENT-SETUP.md)를 참고하세요.
+> **L/S 하이브리드**의 목적: 비용·지연·데이터 경계를 동시에 최적화. 값싼 반복은 로컬 SLM으로 내려 비용을 낮추고, 데이터를 인스턴스 경계 안에 두며, 복잡한 해석만 LLM으로 올립니다. 이때 **추론 엔드포인트 자체를 자체호스팅(경계 안)으로 둘 수 있어**, LLM 계층도 데이터 경계 안에서 돌릴 선택지를 갖습니다.
+
+MCP 구성의 "무엇·왜"는 [`mcp/README.md`](../mcp/README.md), 추론(SLM/LLM) 엔드포인트 구성과 라이브 연결 절차는 [`mcp/README.md`](../mcp/README.md)의 추론 엔드포인트 절과 [`mcp/LIVE-AGENT-SETUP.md`](../mcp/LIVE-AGENT-SETUP.md)를 참고하세요.
 
 ## 4. Eval — 하네스의 안전장치
 
