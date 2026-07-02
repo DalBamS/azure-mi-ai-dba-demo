@@ -24,7 +24,7 @@ const KIND_BY_EXT: Record<string, StepKind> = {
 
 // Step ids whose execution mutates schema/data. The UI gates these behind an
 // explicit confirmation, and mock mode still simulates them without side effects.
-const DESTRUCTIVE = /(rollback|remediate|apply|cleanup|inject|reset|\.down$)/i;
+const DESTRUCTIVE = /(rollback|remediate|apply|cleanup|inject|reset|drop|risky|alter|\.down$)/i;
 
 function kindForFile(file: string): StepKind | null {
   return KIND_BY_EXT[path.extname(file).toLowerCase()] ?? null;
@@ -57,32 +57,56 @@ function readReadmeTitle(readmeAbs: string, fallback: string): string {
   return fallback;
 }
 
+/**
+ * Collect step files for a demo. Top-level numbered files (01_*.sql …) are the
+ * primary sequence; some demos (cicd I/J/K) keep runnable assets one or more
+ * folders deep, so we recurse and use the demo-relative POSIX path as the step
+ * id to keep ids unique and to let the UI group by folder.
+ */
 function buildSteps(repoRoot: string, demoAbs: string): Step[] {
-  const entries = fs
-    .readdirSync(demoAbs, { withFileTypes: true })
-    .filter((e) => e.isFile() && e.name.toLowerCase() !== "readme.md");
-
   const steps: Step[] = [];
-  for (const entry of entries) {
-    const kind = kindForFile(entry.name);
-    if (!kind) continue;
-    const id = entry.name.replace(/\.[^.]+$/, "");
-    const abs = path.join(demoAbs, entry.name);
-    steps.push(
-      StepSchema.parse({
-        order: orderForId(id),
-        id,
-        file: entry.name,
-        path: toRepoRelative(repoRoot, abs),
-        kind,
-        title: titleForId(id),
-        destructive: DESTRUCTIVE.test(id),
-        manual: kind === "md",
-      } satisfies Step),
-    );
-  }
 
-  steps.sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
+  const walk = (dirAbs: string): void => {
+    for (const entry of fs.readdirSync(dirAbs, { withFileTypes: true })) {
+      const abs = path.join(dirAbs, entry.name);
+      if (entry.isDirectory()) {
+        walk(abs);
+        continue;
+      }
+      if (!entry.isFile()) continue;
+      if (entry.name.toLowerCase() === "readme.md") continue;
+      const kind = kindForFile(entry.name);
+      if (!kind) continue;
+
+      // Demo-relative POSIX path, e.g. "migrations/001_add_x.up.sql".
+      const rel = path.relative(demoAbs, abs).split(path.sep).join("/");
+      const id = rel.replace(/\.[^.]+$/, "");
+      const leaf = path.basename(entry.name).replace(/\.[^.]+$/, "");
+
+      steps.push(
+        StepSchema.parse({
+          order: orderForId(leaf),
+          id,
+          file: rel,
+          path: toRepoRelative(repoRoot, abs),
+          kind,
+          title: titleForId(leaf),
+          destructive: DESTRUCTIVE.test(rel),
+          manual: kind === "md",
+        } satisfies Step),
+      );
+    }
+  };
+
+  walk(demoAbs);
+
+  // Top-level numbered steps first (the demo's main sequence), then nested
+  // assets grouped by folder path.
+  steps.sort((a, b) => {
+    const aNested = a.id.includes("/") ? 1 : 0;
+    const bNested = b.id.includes("/") ? 1 : 0;
+    return aNested - bNested || a.order - b.order || a.id.localeCompare(b.id);
+  });
   return steps;
 }
 
