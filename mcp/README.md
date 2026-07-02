@@ -38,9 +38,21 @@ MCP가 **데이터 연결**(읽기전용)이라면, 추론 엔드포인트는 **
 | 용도 | 위치 | 형태 | 환경변수 | 예시 런타임 |
 | --- | --- | --- | --- | --- |
 | **SLM** (값싼 반복·린트·추출) | 경계 안(로컬) | OpenAI 호환 또는 Ollama 네이티브 | `SLM_ENDPOINT` / `SLM_API_KEY` / `SLM_MODEL` | Foundry Local(`.../v1/chat/completions`), Ollama(`.../api/generate`) |
-| **LLM** (복잡한 해석·리포트) | **선택**: 자체호스팅=경계 안 / 클라우드=경계 밖 | OpenAI 호환 또는 Ollama 네이티브 | `LLM_ENDPOINT` / `LLM_API_KEY` / `LLM_MODEL` | 자체호스팅 OpenAI 호환 게이트웨이·VNet 내 프라이빗 엔드포인트, 또는 관리형 클라우드 엔드포인트 |
+| **LLM** (복잡한 해석·리포트) | **선택**: 자체호스팅=경계 안 / 클라우드=경계 밖 | OpenAI 호환 또는 Ollama 네이티브 | `LLM_ENDPOINT` / `LLM_API_KEY` / `LLM_MODEL` | 자체호스팅 OpenAI 호환 게이트웨이·VNet 내 프라이빗 엔드포인트, **Azure AI Foundry(관리형, 자체 구독/테넌트/리전, 키 발급)**, 또는 그 밖의 관리형 클라우드 엔드포인트 |
 
 > **자체 엔드포인트(경계 안) 의미**: LLM급 해석도 반드시 퍼블릭 클라우드로 나갈 필요는 없습니다. OpenAI 호환 자체호스팅 게이트웨이(또는 프라이빗 네트워크 경로의 관리형 엔드포인트)를 `LLM_ENDPOINT`로 지정하면 **민감 데이터를 경계 안에 둔 채** 해석 단계를 돌릴 수 있습니다. 기본값은 로컬 플레이스홀더이며, 클라우드 사용은 env로 명시적으로 전환합니다.
+
+**구체 예시 — Azure AI Foundry (관리형, 키 발급)**
+
+사용자가 "AI 키를 발급받아 자체 LLM으로 쓰겠다"는 경우의 대표 경로입니다(전부 플레이스홀더, 실값 하드코딩 금지):
+
+1. Azure AI Foundry 포털에서 **프로젝트/허브 생성**(자체 구독/테넌트/리전).
+2. **모델 배포**(예: GPT‑4o mini 등).
+3. 배포의 **Endpoint URL**과 **API Key** 확인.
+4. env로 주입: `LLM_ENDPOINT=https://<your-foundry>.services.ai.azure.com/...`, `LLM_API_KEY=<from-portal>`, `LLM_MODEL=<your-deployment-name>`.
+
+> 프롬프트·데이터가 **내 구독/테넌트/리전 안에 머물고 모델 학습에 사용되지 않으며**, 프라이빗 네트워킹(프라이빗 엔드포인트/VNet)을 붙이면 **경계 안(옵션)** 으로도 운용할 수 있습니다. 리소스명/키/URL은 위 `<your-foundry-resource>` / `https://<your-foundry>.services.ai.azure.com/...` / `<from-portal>` 같은 자리표시자로만 두고, 실값은 `.env`(git-ignored)/Key Vault에 둡니다.
+
 
 **이 env를 쓰는 스크립트**
 - [`demos/pre-prod/G-sql-preflight-lint/run_batch_lint.ps1`](../demos/pre-prod/G-sql-preflight-lint/run_batch_lint.ps1) — 로컬 SLM 배치 린트(`SLM_ENDPOINT`/`SLM_API_KEY`).
