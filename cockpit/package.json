@@ -4,7 +4,8 @@
   "version": "0.1.0",
   "description": "데모 조종석 GUI — control panel over the azure-mi-ai-dba-demo scenarios (mock-first, read-only).",
   "workspaces": [
-    "server"
+    "server",
+    "web"
   ],
   "scripts": {
     "manifest": "npm run manifest --workspace server",
