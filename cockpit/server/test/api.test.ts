@@ -42,6 +42,17 @@ describe("HTTP API (mock)", () => {
     expect(body.every((d: { stepCount: number }) => d.stepCount > 0)).toBe(true);
   });
 
+  it("GET /api/manifest returns the complete validated manifest", async () => {
+    const res = await fetch(`${base}/api/manifest`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.version).toBe(1);
+    expect(body.demos).toHaveLength(11);
+    expect(body.demos.reduce((n: number, d: { steps: unknown[] }) => n + d.steps.length, 0)).toBe(
+      64,
+    );
+  });
+
   it("GET /api/demos/:id returns steps; unknown -> 404", async () => {
     const ok = await fetch(`${base}/api/demos/A`);
     expect(ok.status).toBe(200);
@@ -87,6 +98,27 @@ describe("HTTP API (mock)", () => {
       body: JSON.stringify({ demoId: "A" }),
     });
     expect(res.status).toBe(400);
+  });
+
+  it("POST /api/run rejects invalid variants before runner execution", async () => {
+    const res = await fetch(`${base}/api/run`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ demoId: "A", stepId: "03_eval", variant: "regress" }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toBe("invalid body");
+    expect(body.details.fieldErrors.variant).toBeTruthy();
+  });
+
+  it("POST /api/run 404s on unknown demo", async () => {
+    const res = await fetch(`${base}/api/run`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ demoId: "ZZZ", stepId: "03_eval" }),
+    });
+    expect(res.status).toBe(404);
   });
 
   it("POST /api/run 404s on unknown step", async () => {

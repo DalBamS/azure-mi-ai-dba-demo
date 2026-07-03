@@ -3,8 +3,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { findRepoRoot } from "../src/manifest/paths.js";
+import { DEMO_ANNOTATIONS } from "../src/manifest/annotations.js";
 import { loadManifest, findDemo } from "../src/manifest/load.js";
-import { buildManifest } from "../src/manifest/generate.js";
+import { buildManifest, preserveGeneratedAtIfUnchanged } from "../src/manifest/generate.js";
 import { ManifestSchema } from "../src/manifest/types.js";
 import {
   MockRunner,
@@ -29,6 +30,23 @@ describe("manifest", () => {
     expect(manifest.demos.length).toBe(11);
   });
 
+  it("captures the full 11-demo, 64-step cockpit topology", () => {
+    expect(Object.fromEntries(manifest.demos.map((d) => [d.id, d.steps.length]))).toEqual({
+      A: 5,
+      B: 5,
+      C: 5,
+      M: 5,
+      E: 3,
+      F: 6,
+      G: 7,
+      O: 6,
+      I: 11,
+      J: 8,
+      K: 3,
+    });
+    expect(manifest.demos.reduce((n, d) => n + d.steps.length, 0)).toBe(64);
+  });
+
   it("committed manifest matches a fresh scan of demos/**", () => {
     const fresh = buildManifest(repoRoot);
     const strip = (m: typeof manifest) => ({
@@ -39,10 +57,34 @@ describe("manifest", () => {
     expect(strip(fresh)).toEqual(strip(manifest));
   });
 
+  it("keeps manifest regeneration deterministic when only generatedAt would change", () => {
+    const fresh = buildManifest(repoRoot);
+    const stable = preserveGeneratedAtIfUnchanged(repoRoot, fresh);
+    expect(stable.generatedAt).toBe(manifest.generatedAt);
+  });
+
   it("includes curated presenter annotations for every demo", () => {
     for (const demo of manifest.demos) {
-      expect(demo.summary, `${demo.id} summary`).toBeTruthy();
-      expect(demo.whyAi, `${demo.id} whyAi`).toBeTruthy();
+      expect(demo.summary, `${demo.id} summary`).toBe(DEMO_ANNOTATIONS[demo.id]?.summary);
+      expect(demo.whyAi, `${demo.id} whyAi`).toBe(DEMO_ANNOTATIONS[demo.id]?.whyAi);
+      expect(demo.title, `${demo.id} README title`).not.toBe(demo.slug);
+    }
+  });
+
+  it("derives step kind and manual flags from file extensions", () => {
+    const byExt = new Map([
+      [".sql", "sql"],
+      [".ps1", "ps1"],
+      [".py", "py"],
+      [".md", "md"],
+    ]);
+
+    for (const demo of manifest.demos) {
+      for (const step of demo.steps) {
+        const ext = path.extname(step.file).toLowerCase();
+        expect(step.kind, `${demo.id}/${step.id} kind`).toBe(byExt.get(ext));
+        expect(step.manual, `${demo.id}/${step.id} manual`).toBe(step.kind === "md");
+      }
     }
   });
 
@@ -189,6 +231,26 @@ describe("mock runner contacts no Managed Instance", () => {
     expect(res.stdout).toContain("logical_reads_ok    FAIL");
     expect(res.stdout).toContain("no Managed Instance was contacted");
     expect(res.command).not.toMatch(/-P\s+\S/);
+  });
+
+  it("describes sql, python, PowerShell, markdown, and destructive steps distinctly", async () => {
+    const runner = new MockRunner();
+    const cases = [
+      { demoId: "A", stepId: "01_reproduce", command: /^\[mock\] sqlcmd /, stdout: "read-only" },
+      { demoId: "E", stepId: "02_synthesize_profile", command: /^\[mock\] python /, stdout: "profile" },
+      { demoId: "F", stepId: "generate_ai_report", command: /^\[mock\] pwsh /, stdout: "helper script" },
+      { demoId: "G", stepId: "03_run_slm_lint", command: /^\(manual\) open /, stdout: "manual" },
+      { demoId: "A", stepId: "04_remediate", command: /^\[mock\] sqlcmd /, stdout: "change set" },
+    ];
+
+    for (const c of cases) {
+      const demo = findDemo(manifest, c.demoId)!;
+      const step = demo.steps.find((s) => s.id === c.stepId)!;
+      const res = await runner.run(demo, step);
+      expect(res.command, `${c.demoId}/${c.stepId} command`).toMatch(c.command);
+      expect(res.stdout.toLowerCase(), `${c.demoId}/${c.stepId} stdout`).toContain(c.stdout);
+      expect(res.command).not.toMatch(/-P\s+\S/);
+    }
   });
 });
 
