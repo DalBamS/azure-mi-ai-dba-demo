@@ -263,10 +263,32 @@ export function manifestAbsPath(repoRoot = findRepoRoot()): string {
   return path.join(repoRoot, MANIFEST_RELATIVE);
 }
 
+function withoutGeneratedAt(manifest: Manifest): Manifest {
+  return { ...manifest, generatedAt: "" };
+}
+
+export function preserveGeneratedAtIfUnchanged(repoRoot: string, manifest: Manifest): Manifest {
+  const out = manifestAbsPath(repoRoot);
+  if (!fs.existsSync(out)) return manifest;
+
+  try {
+    const existing = ManifestSchema.parse(JSON.parse(fs.readFileSync(out, "utf8")));
+    if (JSON.stringify(withoutGeneratedAt(existing)) === JSON.stringify(withoutGeneratedAt(manifest))) {
+      return { ...manifest, generatedAt: existing.generatedAt };
+    }
+  } catch (err) {
+    console.warn(
+      `[cockpit] ${out} invalid (${(err as Error).message}); writing a fresh generatedAt.`,
+    );
+  }
+
+  return manifest;
+}
+
 /** CLI entry: regenerate cockpit/manifest.json. */
 function main(): void {
   const repoRoot = findRepoRoot();
-  const manifest = buildManifest(repoRoot);
+  const manifest = preserveGeneratedAtIfUnchanged(repoRoot, buildManifest(repoRoot));
   const out = manifestAbsPath(repoRoot);
   fs.writeFileSync(out, JSON.stringify(manifest, null, 2) + "\n", "utf8");
   const stepCount = manifest.demos.reduce((n, d) => n + d.steps.length, 0);

@@ -72,6 +72,22 @@ describe("integration (mock, end-to-end)", () => {
     expect(ran).toBe(64);
   });
 
+  it("exposes the mocked eval FAIL path through the real HTTP wiring", async () => {
+    const res = await fetch(`${base}/api/run`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ demoId: "A", stepId: "03_eval", variant: "fail" }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.mocked).toBe(true);
+    expect(body.mode).toBe("mock");
+    expect(body.exitCode).not.toBe(0);
+    expect(body.stdout).toContain("logical_reads_ok    FAIL");
+    expect(body.stdout).toContain("no Managed Instance was contacted");
+    expect(body.command).not.toMatch(/-P\s+\S/);
+  });
+
   it("ships a built web bundle that references the API", () => {
     const here = path.dirname(fileURLToPath(import.meta.url));
     const repoRoot = findRepoRoot(here);
