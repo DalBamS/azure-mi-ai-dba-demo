@@ -17,6 +17,8 @@ export interface Demo {
   slug: string;
   lifecycle: Lifecycle;
   title: string;
+  summary?: string;
+  whyAi?: string;
   path: string;
   readme: string | null;
   steps: Step[];
@@ -27,6 +29,8 @@ export interface DemoSummary {
   slug: string;
   lifecycle: Lifecycle;
   title: string;
+  summary?: string;
+  whyAi?: string;
   stepCount: number;
 }
 
@@ -53,6 +57,8 @@ export interface RunResult {
   stderr: string;
 }
 
+export type RunVariant = "pass" | "fail";
+
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.text();
@@ -65,10 +71,10 @@ export const api = {
   health: () => fetch("/api/health").then(json<Health>),
   demos: () => fetch("/api/demos").then(json<DemoSummary[]>),
   demo: (id: string) => fetch(`/api/demos/${id}`).then(json<Demo>),
-  run: (demoId: string, stepId: string) =>
+  run: (demoId: string, stepId: string, variant: RunVariant = "pass") =>
     fetch("/api/run", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ demoId, stepId }),
+      body: JSON.stringify({ demoId, stepId, variant }),
     }).then(json<RunResult>),
 };

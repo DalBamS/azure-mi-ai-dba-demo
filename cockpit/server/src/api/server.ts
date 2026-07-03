@@ -9,6 +9,7 @@ const RunBody = z.object({
   demoId: z.string().min(1),
   stepId: z.string().min(1),
   database: z.string().min(1).optional(),
+  variant: z.enum(["pass", "fail"]).default("pass"),
 });
 
 export interface AppOptions {
@@ -48,6 +49,8 @@ export function createApp(opts: AppOptions = {}): Express {
         slug: d.slug,
         lifecycle: d.lifecycle,
         title: d.title,
+        summary: d.summary,
+        whyAi: d.whyAi,
         stepCount: d.steps.length,
       })),
     );
@@ -79,7 +82,10 @@ export function createApp(opts: AppOptions = {}): Express {
       return;
     }
     try {
-      const result = await runner.run(demo, step, { database: parsed.data.database });
+      const result = await runner.run(demo, step, {
+        database: parsed.data.database,
+        variant: parsed.data.variant,
+      });
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: (err as Error).message });

@@ -51,7 +51,7 @@ describe("HTTP API (mock)", () => {
     expect(miss.status).toBe(404);
   });
 
-  it("POST /api/run returns a mocked result", async () => {
+  it("POST /api/run returns a mocked PASS result by default", async () => {
     const res = await fetch(`${base}/api/run`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -61,7 +61,23 @@ describe("HTTP API (mock)", () => {
     const body = await res.json();
     expect(body.mocked).toBe(true);
     expect(body.exitCode).toBe(0);
+    expect(body.stdout).toContain("logical_reads_ok    PASS");
     expect(body.stdout).toContain("no Managed Instance was contacted");
+  });
+
+  it("POST /api/run can return a mocked eval FAIL regression", async () => {
+    const res = await fetch(`${base}/api/run`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ demoId: "A", stepId: "03_eval", variant: "fail" }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.mocked).toBe(true);
+    expect(body.exitCode).not.toBe(0);
+    expect(body.stdout).toContain("logical_reads_ok    FAIL");
+    expect(body.stdout).toContain("no Managed Instance was contacted");
+    expect(body.command).not.toMatch(/-P\s+\S/);
   });
 
   it("POST /api/run validates the body", async () => {

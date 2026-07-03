@@ -38,7 +38,9 @@ export class MockRunner implements Runner {
     }
 
     const command = this.describeCommand(demo, step, database);
-    const stdout = this.simulate(demo, step, database);
+    const variant = ctx.variant ?? "pass";
+    const stdout = this.simulate(demo, step, database, variant);
+    const exitCode = variant === "fail" && /eval/i.test(step.id) ? 1 : 0;
     // A small deterministic pseudo-duration keeps the UI lively without randomness.
     const durationMs = 40 + ((step.id.length * 7 + step.order * 11) % 260);
 
@@ -46,7 +48,7 @@ export class MockRunner implements Runner {
       ...base,
       manual: false,
       skipped: false,
-      exitCode: 0,
+      exitCode,
       durationMs,
       command,
       stdout,
@@ -67,7 +69,7 @@ export class MockRunner implements Runner {
     }
   }
 
-  private simulate(demo: Demo, step: Step, database: string): string {
+  private simulate(demo: Demo, step: Step, database: string, variant: "pass" | "fail"): string {
     const header =
       `── MOCK RUN ─────────────────────────────────────────\n` +
       `demo   : ${demo.id} (${demo.lifecycle}) ${demo.title}\n` +
@@ -79,7 +81,7 @@ export class MockRunner implements Runner {
 
     const body =
       step.kind === "sql"
-        ? this.simulateSql(step)
+        ? this.simulateSql(step, variant)
         : step.kind === "py"
           ? `Synthesizing profile / driver output (mock)…\nOK: produced 1 artifact for '${step.id}'.`
           : `Executing helper script (mock)…\nOK: '${step.id}' completed with 0 warnings.`;
@@ -87,7 +89,7 @@ export class MockRunner implements Runner {
     return header + body + "\n";
   }
 
-  private simulateSql(step: Step): string {
+  private simulateSql(step: Step, variant: "pass" | "fail"): string {
     if (step.destructive) {
       return (
         `(mock) applied change set for '${step.id}'.\n` +
@@ -96,6 +98,15 @@ export class MockRunner implements Runner {
       );
     }
     if (/eval/i.test(step.id)) {
+      if (variant === "fail") {
+        return (
+          `eval_check          result\n` +
+          `------------------  ------\n` +
+          `precondition_met    PASS\n` +
+          `logical_reads_ok    FAIL\n` +
+          `(2 rows) [simulated eval regression]`
+        );
+      }
       return (
         `eval_check          result\n` +
         `------------------  ------\n` +
