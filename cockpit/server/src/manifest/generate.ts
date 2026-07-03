@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { DEMO_ANNOTATIONS } from "./annotations.js";
 import { findRepoRoot, toRepoRelative } from "./paths.js";
 import {
   DemoSchema,
@@ -24,7 +25,8 @@ const KIND_BY_EXT: Record<string, StepKind> = {
 
 // Step ids whose execution mutates schema/data. The UI gates these behind an
 // explicit confirmation, and mock mode still simulates them without side effects.
-const DESTRUCTIVE = /(rollback|remediate|apply|cleanup|inject|reset|drop|risky|alter|\.down$)/i;
+const DESTRUCTIVE =
+  /(rollback|remediate|apply|cleanup|inject|reset|drop|risky|alter|\.down(?:\.sql)?$)/i;
 
 function kindForFile(file: string): StepKind | null {
   return KIND_BY_EXT[path.extname(file).toLowerCase()] ?? null;
@@ -57,13 +59,90 @@ function readReadmeTitle(readmeAbs: string, fallback: string): string {
   return fallback;
 }
 
+interface ReadmeMatcher {
+  index: number;
+  matches: (step: Step) => boolean;
+}
+
+function globPatternToRegex(pattern: string): RegExp {
+  const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*");
+  return new RegExp(`^${escaped}$`, "i");
+}
+
+function buildReadmeMatchers(readmeAbs: string | null): ReadmeMatcher[] {
+  if (!readmeAbs || !fs.existsSync(readmeAbs)) return [];
+
+  const text = fs.readFileSync(readmeAbs, "utf8");
+  const matches: ReadmeMatcher[] = [];
+  let match: RegExpExecArray | null;
+  const tokenPattern = /`([^`]+)`/g;
+  let wildcardContext = "";
+
+  while ((match = tokenPattern.exec(text))) {
+    const raw = match[1]!.trim();
+    if (!raw || /\s/.test(raw)) continue;
+    let token = raw.replace(/\\/g, "/").replace(/^\.\//, "");
+    if (token.startsWith("../") || token.startsWith("/") || token.includes("<")) continue;
+    if (!/[/*.]|\.sql$|\.md$|\.py$|\.ps1$/i.test(token)) continue;
+
+    const index = matches.length;
+    if (token.includes("*")) {
+      if (!token.includes("/")) {
+        if (!wildcardContext) continue;
+        token = `${wildcardContext}${token}`;
+      }
+      wildcardContext = token.slice(0, token.indexOf("*"));
+      const regex = globPatternToRegex(token);
+      matches.push({
+        index,
+        matches: (step) => regex.test(step.file) || regex.test(path.posix.basename(step.file)),
+      });
+      continue;
+    }
+    wildcardContext = "";
+
+    if (token.endsWith("/") || path.posix.extname(token) === "") {
+      const prefix = token.endsWith("/") ? token : `${token}/`;
+      matches.push({ index, matches: (step) => step.file.startsWith(prefix) });
+      continue;
+    }
+
+    matches.push({
+      index,
+      matches: (step) => step.file === token || path.posix.basename(step.file) === token,
+    });
+  }
+
+  return matches;
+}
+
+function readmeOrder(step: Step, matchers: ReadmeMatcher[]): number {
+  return matchers.find((m) => m.matches(step))?.index ?? Number.POSITIVE_INFINITY;
+}
+
+function upDownPriority(file: string): number {
+  if (/\.up\.sql$/i.test(file)) return 0;
+  if (/\.down\.sql$/i.test(file)) return 1;
+  return 2;
+}
+
+function compareWithinFolder(a: Step, b: Step): number {
+  const aOrder = a.order > 0 ? a.order : Number.MAX_SAFE_INTEGER;
+  const bOrder = b.order > 0 ? b.order : Number.MAX_SAFE_INTEGER;
+  return (
+    aOrder - bOrder ||
+    upDownPriority(a.file) - upDownPriority(b.file) ||
+    a.file.localeCompare(b.file)
+  );
+}
+
 /**
  * Collect step files for a demo. Top-level numbered files (01_*.sql …) are the
  * primary sequence; some demos (cicd I/J/K) keep runnable assets one or more
  * folders deep, so we recurse and use the demo-relative POSIX path as the step
  * id to keep ids unique and to let the UI group by folder.
  */
-function buildSteps(repoRoot: string, demoAbs: string): Step[] {
+function buildSteps(repoRoot: string, demoAbs: string, readmeAbs: string | null): Step[] {
   const steps: Step[] = [];
 
   const walk = (dirAbs: string): void => {
@@ -99,13 +178,25 @@ function buildSteps(repoRoot: string, demoAbs: string): Step[] {
   };
 
   walk(demoAbs);
+  const readmeMatchers = buildReadmeMatchers(readmeAbs);
 
-  // Top-level numbered steps first (the demo's main sequence), then nested
-  // assets grouped by folder path.
+  // Top-level numbered steps remain the main sequence. Nested/no-prefix assets
+  // follow the README narrative when available, otherwise group by folder.
   steps.sort((a, b) => {
-    const aNested = a.id.includes("/") ? 1 : 0;
-    const bNested = b.id.includes("/") ? 1 : 0;
-    return aNested - bNested || a.order - b.order || a.id.localeCompare(b.id);
+    const aTopLevel = a.id.includes("/") ? 0 : 1;
+    const bTopLevel = b.id.includes("/") ? 0 : 1;
+    if (aTopLevel !== bTopLevel) return bTopLevel - aTopLevel;
+    if (aTopLevel && bTopLevel) {
+      return a.order - b.order || a.id.localeCompare(b.id);
+    }
+
+    const aReadme = readmeOrder(a, readmeMatchers);
+    const bReadme = readmeOrder(b, readmeMatchers);
+    if (aReadme !== bReadme) return aReadme - bReadme;
+
+    const aDir = path.posix.dirname(a.file);
+    const bDir = path.posix.dirname(b.file);
+    return aDir.localeCompare(bDir) || compareWithinFolder(a, b);
   });
   return steps;
 }
@@ -124,15 +215,17 @@ function buildDemo(
   const readmeAbs = path.join(demoAbs, "README.md");
   const hasReadme = fs.existsSync(readmeAbs);
   const title = hasReadme ? readReadmeTitle(readmeAbs, slug) : slug;
+  const annotation = DEMO_ANNOTATIONS[id];
 
   return DemoSchema.parse({
     id,
     slug,
     lifecycle,
     title,
+    ...(annotation ?? {}),
     path: toRepoRelative(repoRoot, demoAbs),
     readme: hasReadme ? toRepoRelative(repoRoot, readmeAbs) : null,
-    steps: buildSteps(repoRoot, demoAbs),
+    steps: buildSteps(repoRoot, demoAbs, hasReadme ? readmeAbs : null),
   } satisfies Demo);
 }
 

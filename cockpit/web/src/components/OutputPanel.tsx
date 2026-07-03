@@ -8,6 +8,8 @@ interface Props {
 }
 
 export function OutputPanel({ result, error }: Props) {
+  const failed = result ? result.exitCode !== 0 || /\bFAIL\b/.test(result.stdout) : false;
+
   return (
     <div className="flex h-full flex-col rounded-lg border bg-card">
       <div className="flex items-center gap-2 border-b px-4 py-2.5">
@@ -15,13 +17,13 @@ export function OutputPanel({ result, error }: Props) {
         <span className="text-sm font-semibold">출력 · Output</span>
         {result && (
           <div className="ml-auto flex items-center gap-2">
-            <Badge variant={result.exitCode === 0 ? "secondary" : "destructive"} className="gap-1">
-              {result.exitCode === 0 ? (
+            <Badge variant={failed ? "destructive" : "secondary"} className="gap-1">
+              {!failed ? (
                 <CheckCircle2 className="h-3 w-3" />
               ) : (
                 <XCircle className="h-3 w-3" />
               )}
-              exit {result.exitCode}
+              {failed ? "FAIL · " : ""}exit {result.exitCode}
             </Badge>
             <Badge variant="outline" className="gap-1">
               <Clock className="h-3 w-3" />

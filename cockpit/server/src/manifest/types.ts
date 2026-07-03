@@ -43,6 +43,10 @@ export const DemoSchema = z.object({
   lifecycle: Lifecycle,
   /** Title parsed from the demo README H1 (falls back to the slug). */
   title: z.string().min(1),
+  /** Presenter-facing one-line explanation of what the demo shows. */
+  summary: z.string().min(1).optional(),
+  /** Presenter-facing explanation of why AI improves this workflow. */
+  whyAi: z.string().min(1).optional(),
   /** Repo-relative POSIX path to the demo folder. */
   path: z.string().min(1),
   /** Repo-relative POSIX path to the demo README, if present. */

@@ -1,11 +1,14 @@
 import type { Demo, Step } from "../manifest/types.js";
 
 export type RunMode = "mock" | "live";
+export type RunVariant = "pass" | "fail";
 
 export interface RunContext {
   mode: RunMode;
   /** Optional database override; defaults to env SQLMI_DATABASE / "gamedb". */
   database?: string;
+  /** Presenter scenario: normal PASS path or mocked regression FAIL path. */
+  variant?: RunVariant;
 }
 
 export interface RunResult {

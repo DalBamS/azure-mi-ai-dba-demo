@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { Gauge, PlayCircle, FileCode2, AlertTriangle } from "lucide-react";
-import { api, type Demo, type DemoSummary, type Health, type RunResult, type Step } from "@/lib/api";
+import {
+  api,
+  type Demo,
+  type DemoSummary,
+  type Health,
+  type RunResult,
+  type RunVariant,
+  type Step,
+} from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DemoSidebar } from "@/components/DemoSidebar";
@@ -15,6 +23,7 @@ export default function App() {
   const [runningStep, setRunningStep] = useState<string | null>(null);
   const [result, setResult] = useState<RunResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [runVariant, setRunVariant] = useState<RunVariant>("pass");
 
   useEffect(() => {
     Promise.all([api.health(), api.demos()])
@@ -38,7 +47,7 @@ export default function App() {
       setRunningStep(step.id);
       setError(null);
       try {
-        const res = await api.run(demo.id, step.id);
+        const res = await api.run(demo.id, step.id, runVariant);
         setResult(res);
       } catch (e) {
         setError((e as Error).message);
@@ -46,7 +55,7 @@ export default function App() {
         setRunningStep(null);
       }
     },
-    [demo],
+    [demo, runVariant],
   );
 
   const runAllSafe = useCallback(async () => {
@@ -55,7 +64,7 @@ export default function App() {
     for (const step of steps) {
       setRunningStep(step.id);
       try {
-        const res = await api.run(demo.id, step.id);
+        const res = await api.run(demo.id, step.id, runVariant);
         setResult(res);
       } catch (e) {
         setError((e as Error).message);
@@ -63,7 +72,7 @@ export default function App() {
       }
     }
     setRunningStep(null);
-  }, [demo]);
+  }, [demo, runVariant]);
 
   const live = health?.mode === "live";
 
@@ -99,16 +108,43 @@ export default function App() {
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary/15 text-sm font-bold text-primary">
                     {demo.id}
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 space-y-2">
                     <h2 className="text-lg font-semibold">{demo.title}</h2>
                     <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
                       <Badge variant="outline">{demo.lifecycle}</Badge>
                       <span className="font-mono">{demo.path}</span>
                     </div>
+                    {(demo.summary || demo.whyAi) && (
+                      <div className="grid gap-2 rounded-lg border bg-muted/30 p-3 text-sm">
+                        {demo.summary && (
+                          <p>
+                            <span className="font-semibold text-foreground">무엇을 보여주나: </span>
+                            <span className="text-muted-foreground">{demo.summary}</span>
+                          </p>
+                        )}
+                        {demo.whyAi && (
+                          <p>
+                            <span className="font-semibold text-foreground">왜 AI인가: </span>
+                            <span className="text-muted-foreground">{demo.whyAi}</span>
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <Button variant="outline" size="sm" onClick={runAllSafe} disabled={!!runningStep}>
-                    <PlayCircle className="h-4 w-4" /> 안전 스텝 일괄 실행
-                  </Button>
+                  <div className="flex shrink-0 flex-col items-end gap-2">
+                    <label className="flex cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={runVariant === "fail"}
+                        onChange={(e) => setRunVariant(e.target.checked ? "fail" : "pass")}
+                        className="h-4 w-4 accent-destructive"
+                      />
+                      <span>회귀 시나리오(FAIL 재현)</span>
+                    </label>
+                    <Button variant="outline" size="sm" onClick={runAllSafe} disabled={!!runningStep}>
+                      <PlayCircle className="h-4 w-4" /> 안전 스텝 일괄 실행
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="space-y-1.5">

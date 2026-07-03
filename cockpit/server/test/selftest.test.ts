@@ -39,6 +39,52 @@ describe("manifest", () => {
     expect(strip(fresh)).toEqual(strip(manifest));
   });
 
+  it("includes curated presenter annotations for every demo", () => {
+    for (const demo of manifest.demos) {
+      expect(demo.summary, `${demo.id} summary`).toBeTruthy();
+      expect(demo.whyAi, `${demo.id} whyAi`).toBeTruthy();
+    }
+  });
+
+  it("orders cicd nested assets by README narrative", () => {
+    expect(findDemo(manifest, "I")?.steps.map((s) => s.id)).toEqual([
+      "prompts/nl-request",
+      "migrations/001_add_season_id_to_leaderboard.up",
+      "migrations/001_add_season_id_to_leaderboard.down",
+      "migrations/002_add_inventory_soft_delete.up",
+      "migrations/002_add_inventory_soft_delete.down",
+      "db-project/Tables/currency_ledger",
+      "db-project/Tables/inventory",
+      "db-project/Tables/leaderboard",
+      "db-project/Tables/matches",
+      "db-project/Tables/players",
+      "db-project/Tables/seasons",
+    ]);
+    expect(findDemo(manifest, "J")?.steps.map((s) => s.id)).toEqual([
+      "sample-migrations/risky_alter_inventory",
+      "sample-migrations/risky_drop_column",
+      "ai-review/risk-rubric",
+      "ai-review/risk-report",
+      "ai-review/pr-review-comments",
+      "security-gate/over-privilege",
+      "security-gate/masking-gap",
+      "security-gate/secret-scan",
+    ]);
+    expect(findDemo(manifest, "K")?.steps.map((s) => s.id)).toEqual([
+      "scripts/drift-check",
+      "scripts/smoke-load",
+      "scripts/summarize-failure",
+    ]);
+  });
+
+  it("gates down migrations as destructive", () => {
+    for (const demo of manifest.demos) {
+      for (const step of demo.steps.filter((s) => /\.down$/i.test(s.id))) {
+        expect(step.destructive, `${demo.id}/${step.id}`).toBe(true);
+      }
+    }
+  });
+
   it("references only files that exist on disk", () => {
     for (const demo of manifest.demos) {
       for (const step of demo.steps) {
@@ -129,6 +175,20 @@ describe("mock runner contacts no Managed Instance", () => {
     // Sanity: total steps covered equals the manifest's step count.
     const total = manifest.demos.reduce((n, d) => n + d.steps.length, 0);
     expect(executed + manual).toBe(total);
+  });
+
+  it("returns a mocked eval failure without exposing live connectivity", async () => {
+    const runner = new MockRunner();
+    const demo = findDemo(manifest, "A")!;
+    const step = demo.steps.find((s) => s.id === "03_eval")!;
+    const res = await runner.run(demo, step, { variant: "fail" });
+
+    expect(res.mocked).toBe(true);
+    expect(res.mode).toBe("mock");
+    expect(res.exitCode).not.toBe(0);
+    expect(res.stdout).toContain("logical_reads_ok    FAIL");
+    expect(res.stdout).toContain("no Managed Instance was contacted");
+    expect(res.command).not.toMatch(/-P\s+\S/);
   });
 });
 
