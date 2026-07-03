@@ -1,0 +1,9 @@
+# cockpit build/deps
+node_modules/
+dist/
+*.tsbuildinfo
+
+# never commit local env/secrets
+.env
+.env.*
+!.env.example
