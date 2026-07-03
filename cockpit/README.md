@@ -60,5 +60,11 @@ API:
 ## Self-test
 ```powershell
 cd cockpit
-npm run selftest          # mock only — asserts no live instance is contacted
+npm install
+npm run selftest          # backend only — 21 tests, mock, no live instance
+npm run selftest:all      # regen manifest + backend tests + web build (full integration)
 ```
+
+The integration test (`server/test/integration.test.ts`) boots the real server
+wiring over HTTP and drives every runnable step of all 11 demos (64 steps)
+through `POST /api/run` in mock mode, asserting no Managed Instance is contacted.
