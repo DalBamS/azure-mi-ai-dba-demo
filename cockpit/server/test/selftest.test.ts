@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { findRepoRoot } from "../src/manifest/paths.js";
 import { DEMO_ANNOTATIONS } from "../src/manifest/annotations.js";
 import { loadManifest, findDemo } from "../src/manifest/load.js";
-import { buildManifest, preserveGeneratedAtIfUnchanged } from "../src/manifest/generate.js";
+import { buildManifest, preserveExistingGeneratedAt } from "../src/manifest/generate.js";
 import { ManifestSchema } from "../src/manifest/types.js";
 import {
   MockRunner,
@@ -20,6 +20,29 @@ const manifest = loadManifest(repoRoot);
 /** Matches the forbidden real-infra / secret tokens the repo must never contain. */
 const FORBIDDEN = /(mieuson20260630|e0d6055acbac|c18a5af0|MngEnvMCAP842578|38a6f9e9)/;
 
+const INJECTION_BY_DEMO = {
+  A: {
+    path: "issue-injection/01_missing_index.sql",
+    resetPath: "issue-injection/01_missing_index.rollback.sql",
+  },
+  B: {
+    path: "issue-injection/02_blocking_deadlock.sessionA.sql",
+    concurrentPaths: [
+      "issue-injection/02_blocking_deadlock.sessionA.sql",
+      "issue-injection/02_blocking_deadlock.sessionB.sql",
+    ],
+    resetPath: "issue-injection/02_blocking_deadlock.rollback.sql",
+  },
+  C: {
+    path: "issue-injection/03_plan_regression.sql",
+    resetPath: "issue-injection/03_plan_regression.rollback.sql",
+  },
+  M: {
+    path: "issue-injection/06_sql_injection.sql",
+    resetPath: "issue-injection/06_sql_injection.rollback.sql",
+  },
+} as const;
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
@@ -30,12 +53,12 @@ describe("manifest", () => {
     expect(manifest.demos.length).toBe(11);
   });
 
-  it("captures the full 11-demo, 64-step cockpit topology", () => {
+  it("captures the full 11-demo, 72-step cockpit topology", () => {
     expect(Object.fromEntries(manifest.demos.map((d) => [d.id, d.steps.length]))).toEqual({
-      A: 5,
-      B: 5,
-      C: 5,
-      M: 5,
+      A: 7,
+      B: 7,
+      C: 7,
+      M: 7,
       E: 3,
       F: 6,
       G: 7,
@@ -44,7 +67,52 @@ describe("manifest", () => {
       J: 8,
       K: 3,
     });
-    expect(manifest.demos.reduce((n, d) => n + d.steps.length, 0)).toBe(64);
+    expect(manifest.demos.reduce((n, d) => n + d.steps.length, 0)).toBe(72);
+  });
+
+  it("injects runtime issue setup and reset steps only for A/B/C/M", () => {
+    for (const demo of manifest.demos) {
+      const spec = INJECTION_BY_DEMO[demo.id as keyof typeof INJECTION_BY_DEMO];
+      const injectionSteps = demo.steps.filter((step) => step.injection);
+      const resetSteps = demo.steps.filter((step) => step.injectionReset);
+
+      if (!spec) {
+        expect(injectionSteps, `${demo.id} injection steps`).toEqual([]);
+        expect(resetSteps, `${demo.id} reset steps`).toEqual([]);
+        continue;
+      }
+
+      const inject = demo.steps[0]!;
+      const reset = demo.steps[demo.steps.length - 1]!;
+      expect(injectionSteps, `${demo.id} injection count`).toHaveLength(1);
+      expect(resetSteps, `${demo.id} reset count`).toHaveLength(1);
+      expect(inject).toMatchObject({
+        order: 0,
+        id: "00_inject",
+        path: spec.path,
+        kind: "sql",
+        destructive: true,
+        manual: false,
+        analysisOnly: false,
+        injection: true,
+      });
+      expect(reset).toMatchObject({
+        order: 99,
+        id: "99_reset",
+        path: spec.resetPath,
+        kind: "sql",
+        destructive: true,
+        manual: false,
+        analysisOnly: false,
+        injectionReset: true,
+      });
+      if ("concurrentPaths" in spec) {
+        expect(inject.concurrentPaths).toEqual(spec.concurrentPaths);
+      } else {
+        expect(inject.concurrentPaths).toBeUndefined();
+      }
+      expect(reset.concurrentPaths).toBeUndefined();
+    }
   });
 
   it("committed manifest matches a fresh scan of demos/**", () => {
@@ -57,9 +125,9 @@ describe("manifest", () => {
     expect(strip(fresh)).toEqual(strip(manifest));
   });
 
-  it("keeps manifest regeneration deterministic when only generatedAt would change", () => {
+  it("keeps manifest regeneration deterministic by preserving the committed generatedAt", () => {
     const fresh = buildManifest(repoRoot);
-    const stable = preserveGeneratedAtIfUnchanged(repoRoot, fresh);
+    const stable = preserveExistingGeneratedAt(repoRoot, fresh);
     expect(stable.generatedAt).toBe(manifest.generatedAt);
   });
 

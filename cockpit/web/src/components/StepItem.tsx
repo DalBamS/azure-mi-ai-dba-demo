@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Loader2, Play, ShieldAlert, FileText } from "lucide-react";
+import { Loader2, Play, ShieldAlert, FileText, RotateCcw } from "lucide-react";
 import type { Step } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -62,6 +62,16 @@ export function StepItem({ step, running, active, onRun }: Props) {
           {step.analysisOnly && (
             <Badge className="gap-1 border-yellow-500/40 bg-yellow-500/15 text-yellow-300">
               <ShieldAlert className="h-3 w-3" /> 분석 전용
+            </Badge>
+          )}
+          {step.injection && (
+            <Badge className="gap-1 border-orange-500/40 bg-orange-500/15 text-orange-300">
+              <ShieldAlert className="h-3 w-3" /> 이슈 주입
+            </Badge>
+          )}
+          {step.injectionReset && (
+            <Badge className="gap-1 border-emerald-500/40 bg-emerald-500/15 text-emerald-300">
+              <RotateCcw className="h-3 w-3" /> 원복
             </Badge>
           )}
           {step.destructive && (

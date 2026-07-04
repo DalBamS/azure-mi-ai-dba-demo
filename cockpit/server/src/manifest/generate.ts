@@ -33,6 +33,44 @@ const ANALYSIS_ONLY = new Set<string>([
   "demos/cicd/J-pr-risk-review/sample-migrations/risky_drop_column.sql",
 ]);
 
+type InjSpec = {
+  title: string;
+  path?: string;
+  concurrentPaths?: string[];
+  resetPath: string;
+  resetTitle: string;
+};
+
+const INJECTIONS: Record<string, InjSpec> = {
+  A: {
+    title: "이슈 주입 — 누락 인덱스 DROP",
+    path: "issue-injection/01_missing_index.sql",
+    resetPath: "issue-injection/01_missing_index.rollback.sql",
+    resetTitle: "주입 원복 — 인덱스 재생성",
+  },
+  C: {
+    title: "이슈 주입 — plan regression",
+    path: "issue-injection/03_plan_regression.sql",
+    resetPath: "issue-injection/03_plan_regression.rollback.sql",
+    resetTitle: "주입 원복 — proc/plan 복구",
+  },
+  M: {
+    title: "이슈 주입 — 취약 proc 생성",
+    path: "issue-injection/06_sql_injection.sql",
+    resetPath: "issue-injection/06_sql_injection.rollback.sql",
+    resetTitle: "주입 원복 — 취약 proc 제거",
+  },
+  B: {
+    title: "이슈 주입 — deadlock 2세션 동시 실행",
+    concurrentPaths: [
+      "issue-injection/02_blocking_deadlock.sessionA.sql",
+      "issue-injection/02_blocking_deadlock.sessionB.sql",
+    ],
+    resetPath: "issue-injection/02_blocking_deadlock.rollback.sql",
+    resetTitle: "주입 원복 — deadlock 정리",
+  },
+};
+
 function kindForFile(file: string): StepKind | null {
   return KIND_BY_EXT[path.extname(file).toLowerCase()] ?? null;
 }
@@ -179,6 +217,8 @@ function buildSteps(repoRoot: string, demoAbs: string, readmeAbs: string | null)
           destructive: DESTRUCTIVE.test(rel),
           manual: kind === "md",
           analysisOnly: ANALYSIS_ONLY.has(repoRel),
+          injection: false,
+          injectionReset: false,
         } satisfies Step),
       );
     }
@@ -208,6 +248,45 @@ function buildSteps(repoRoot: string, demoAbs: string, readmeAbs: string | null)
   return steps;
 }
 
+function withInjectionSteps(demo: Demo): Step[] {
+  const spec = INJECTIONS[demo.id];
+  if (!spec) return demo.steps;
+
+  const primaryPath = spec.path ?? spec.concurrentPaths?.[0];
+  if (!primaryPath) throw new Error(`Injection for demo ${demo.id} must define a path.`);
+
+  const inject = StepSchema.parse({
+    order: 0,
+    id: "00_inject",
+    file: path.posix.basename(primaryPath),
+    path: primaryPath,
+    kind: "sql",
+    title: spec.title,
+    destructive: true,
+    manual: false,
+    analysisOnly: false,
+    injection: true,
+    injectionReset: false,
+    ...(spec.concurrentPaths ? { concurrentPaths: spec.concurrentPaths } : {}),
+  } satisfies Step);
+
+  const reset = StepSchema.parse({
+    order: 99,
+    id: "99_reset",
+    file: path.posix.basename(spec.resetPath),
+    path: spec.resetPath,
+    kind: "sql",
+    title: spec.resetTitle,
+    destructive: true,
+    manual: false,
+    analysisOnly: false,
+    injection: false,
+    injectionReset: true,
+  } satisfies Step);
+
+  return [inject, ...demo.steps, reset].sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
+}
+
 function buildDemo(
   repoRoot: string,
   lifecycle: Lifecycle,
@@ -224,7 +303,7 @@ function buildDemo(
   const title = hasReadme ? readReadmeTitle(readmeAbs, slug) : slug;
   const annotation = DEMO_ANNOTATIONS[id];
 
-  return DemoSchema.parse({
+  const demo = DemoSchema.parse({
     id,
     slug,
     lifecycle,
@@ -234,6 +313,8 @@ function buildDemo(
     readme: hasReadme ? toRepoRelative(repoRoot, readmeAbs) : null,
     steps: buildSteps(repoRoot, demoAbs, hasReadme ? readmeAbs : null),
   } satisfies Demo);
+
+  return { ...demo, steps: withInjectionSteps(demo) };
 }
 
 /** Scan demos/** and produce a validated manifest object. */
@@ -270,29 +351,27 @@ export function manifestAbsPath(repoRoot = findRepoRoot()): string {
   return path.join(repoRoot, MANIFEST_RELATIVE);
 }
 
-function withoutGeneratedAt(manifest: Manifest): Manifest {
-  return { ...manifest, generatedAt: "" };
-}
-
 function manifestJson(manifest: Manifest): string {
   return (
     JSON.stringify(
       manifest,
-      (key, value) => (key === "analysisOnly" && value === false ? undefined : value),
+      (key, value) =>
+        ["analysisOnly", "injection", "injectionReset"].includes(key) && value === false
+          ? undefined
+          : value,
       2,
     ) + "\n"
   );
 }
 
-export function preserveGeneratedAtIfUnchanged(repoRoot: string, manifest: Manifest): Manifest {
+/** Keep generated manifest diffs reviewable by preserving the committed timestamp. */
+export function preserveExistingGeneratedAt(repoRoot: string, manifest: Manifest): Manifest {
   const out = manifestAbsPath(repoRoot);
   if (!fs.existsSync(out)) return manifest;
 
   try {
     const existing = ManifestSchema.parse(JSON.parse(fs.readFileSync(out, "utf8")));
-    if (JSON.stringify(withoutGeneratedAt(existing)) === JSON.stringify(withoutGeneratedAt(manifest))) {
-      return { ...manifest, generatedAt: existing.generatedAt };
-    }
+    return { ...manifest, generatedAt: existing.generatedAt };
   } catch (err) {
     console.warn(
       `[cockpit] ${out} invalid (${(err as Error).message}); writing a fresh generatedAt.`,
@@ -305,7 +384,7 @@ export function preserveGeneratedAtIfUnchanged(repoRoot: string, manifest: Manif
 /** CLI entry: regenerate cockpit/manifest.json. */
 function main(): void {
   const repoRoot = findRepoRoot();
-  const manifest = preserveGeneratedAtIfUnchanged(repoRoot, buildManifest(repoRoot));
+  const manifest = preserveExistingGeneratedAt(repoRoot, buildManifest(repoRoot));
   const out = manifestAbsPath(repoRoot);
   fs.writeFileSync(out, manifestJson(manifest), "utf8");
   const stepCount = manifest.demos.reduce((n, d) => n + d.steps.length, 0);

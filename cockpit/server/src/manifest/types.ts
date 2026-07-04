@@ -36,6 +36,12 @@ export const StepSchema = z.object({
    * sample meant to be ANALYZED by the AI review agent, never run. The runner and
    * API must refuse to execute it. */
   analysisOnly: z.boolean().default(false),
+  /** True for an injected pre-step that intentionally sets up the demo's issue (drop index, cache skewed plan, create vulnerable proc, spawn deadlock). Runnable, destructive, and paired with a reset. */
+  injection: z.boolean().default(false),
+  /** True for the housekeeping step that undoes an injection (runs the *.rollback.sql). */
+  injectionReset: z.boolean().default(false),
+  /** For steps that must run multiple scripts concurrently (e.g., B's two deadlock sessions). Repo-relative POSIX paths. When set, the runner spawns one process per path in parallel and awaits all. */
+  concurrentPaths: z.array(z.string()).optional(),
 });
 export type Step = z.infer<typeof StepSchema>;
 

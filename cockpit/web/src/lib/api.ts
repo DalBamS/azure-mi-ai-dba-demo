@@ -11,6 +11,9 @@ export interface Step {
   destructive: boolean;
   manual: boolean;
   analysisOnly?: boolean;
+  injection?: boolean;
+  injectionReset?: boolean;
+  concurrentPaths?: string[];
 }
 
 export interface Demo {
