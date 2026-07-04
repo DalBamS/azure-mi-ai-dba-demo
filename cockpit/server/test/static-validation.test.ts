@@ -7,6 +7,17 @@ import { loadManifest } from "../src/manifest/load.js";
 
 const repoRoot = findRepoRoot();
 const manifest = loadManifest(repoRoot);
+const injectedIssueSteps = [
+  "issue-injection/01_missing_index.rollback.sql",
+  "issue-injection/01_missing_index.sql",
+  "issue-injection/02_blocking_deadlock.rollback.sql",
+  "issue-injection/02_blocking_deadlock.sessionA.sql",
+  "issue-injection/02_blocking_deadlock.sessionB.sql",
+  "issue-injection/03_plan_regression.rollback.sql",
+  "issue-injection/03_plan_regression.sql",
+  "issue-injection/06_sql_injection.rollback.sql",
+  "issue-injection/06_sql_injection.sql",
+];
 
 function listFiles(dir: string, predicate: (file: string) => boolean): string[] {
   const files: string[] = [];
@@ -184,13 +195,18 @@ if ($failed.Count -gt 0) {
     }
   });
 
-  it("keeps demos step files exactly aligned with the generated manifest", () => {
+  it("keeps demos step files plus curated issue-injection files exactly aligned with the generated manifest", () => {
     const diskSteps = listFiles(path.join(repoRoot, "demos"), (file) => {
       if (/README\.md$/i.test(file)) return false;
       return [".sql", ".py", ".ps1", ".md"].includes(path.extname(file).toLowerCase());
-    }).map((file) => toRepoRelative(repoRoot, file));
+    })
+      .map((file) => toRepoRelative(repoRoot, file))
+      .concat(injectedIssueSteps)
+      .sort((a, b) => a.localeCompare(b));
     const manifestSteps = manifest.demos
-      .flatMap((demo) => demo.steps.map((step) => step.path))
+      .flatMap((demo) =>
+        demo.steps.flatMap((step) => step.concurrentPaths ?? [step.path]),
+      )
       .sort((a, b) => a.localeCompare(b));
 
     expect(manifestSteps).toEqual(diskSteps);

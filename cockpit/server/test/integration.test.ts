@@ -73,8 +73,8 @@ describe("integration (mock, end-to-end)", () => {
       }
     }
 
-    // 11 demos, 64 steps total: 62 runnable, 2 analysis-only samples blocked by design.
-    expect(ran).toBe(62);
+    // 11 demos, 72 steps total: 70 runnable, 2 analysis-only samples blocked by design.
+    expect(ran).toBe(70);
     expect(analysisOnly).toBe(2);
   });
 

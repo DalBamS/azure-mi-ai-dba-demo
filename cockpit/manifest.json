@@ -14,6 +14,17 @@
       "readme": "demos/runtime/A-slow-query-index/README.md",
       "steps": [
         {
+          "order": 0,
+          "id": "00_inject",
+          "file": "01_missing_index.sql",
+          "path": "issue-injection/01_missing_index.sql",
+          "kind": "sql",
+          "title": "이슈 주입 — 누락 인덱스 DROP",
+          "destructive": true,
+          "manual": false,
+          "injection": true
+        },
+        {
           "order": 1,
           "id": "01_reproduce",
           "file": "01_reproduce.sql",
@@ -62,6 +73,17 @@
           "title": "rollback",
           "destructive": true,
           "manual": false
+        },
+        {
+          "order": 99,
+          "id": "99_reset",
+          "file": "01_missing_index.rollback.sql",
+          "path": "issue-injection/01_missing_index.rollback.sql",
+          "kind": "sql",
+          "title": "주입 원복 — 인덱스 재생성",
+          "destructive": true,
+          "manual": false,
+          "injectionReset": true
         }
       ]
     },
@@ -75,6 +97,21 @@
       "path": "demos/runtime/B-deadlock-root-cause",
       "readme": "demos/runtime/B-deadlock-root-cause/README.md",
       "steps": [
+        {
+          "order": 0,
+          "id": "00_inject",
+          "file": "02_blocking_deadlock.sessionA.sql",
+          "path": "issue-injection/02_blocking_deadlock.sessionA.sql",
+          "kind": "sql",
+          "title": "이슈 주입 — deadlock 2세션 동시 실행",
+          "destructive": true,
+          "manual": false,
+          "injection": true,
+          "concurrentPaths": [
+            "issue-injection/02_blocking_deadlock.sessionA.sql",
+            "issue-injection/02_blocking_deadlock.sessionB.sql"
+          ]
+        },
         {
           "order": 1,
           "id": "01_observe_blocking",
@@ -124,6 +161,17 @@
           "title": "rollback",
           "destructive": true,
           "manual": false
+        },
+        {
+          "order": 99,
+          "id": "99_reset",
+          "file": "02_blocking_deadlock.rollback.sql",
+          "path": "issue-injection/02_blocking_deadlock.rollback.sql",
+          "kind": "sql",
+          "title": "주입 원복 — deadlock 정리",
+          "destructive": true,
+          "manual": false,
+          "injectionReset": true
         }
       ]
     },
@@ -137,6 +185,17 @@
       "path": "demos/runtime/C-plan-regression",
       "readme": "demos/runtime/C-plan-regression/README.md",
       "steps": [
+        {
+          "order": 0,
+          "id": "00_inject",
+          "file": "03_plan_regression.sql",
+          "path": "issue-injection/03_plan_regression.sql",
+          "kind": "sql",
+          "title": "이슈 주입 — plan regression",
+          "destructive": true,
+          "manual": false,
+          "injection": true
+        },
         {
           "order": 1,
           "id": "01_reproduce",
@@ -186,6 +245,17 @@
           "title": "rollback",
           "destructive": true,
           "manual": false
+        },
+        {
+          "order": 99,
+          "id": "99_reset",
+          "file": "03_plan_regression.rollback.sql",
+          "path": "issue-injection/03_plan_regression.rollback.sql",
+          "kind": "sql",
+          "title": "주입 원복 — proc/plan 복구",
+          "destructive": true,
+          "manual": false,
+          "injectionReset": true
         }
       ]
     },
@@ -199,6 +269,17 @@
       "path": "demos/runtime/M-sql-injection",
       "readme": "demos/runtime/M-sql-injection/README.md",
       "steps": [
+        {
+          "order": 0,
+          "id": "00_inject",
+          "file": "06_sql_injection.sql",
+          "path": "issue-injection/06_sql_injection.sql",
+          "kind": "sql",
+          "title": "이슈 주입 — 취약 proc 생성",
+          "destructive": true,
+          "manual": false,
+          "injection": true
+        },
         {
           "order": 1,
           "id": "01_reproduce",
@@ -248,6 +329,17 @@
           "title": "rollback",
           "destructive": true,
           "manual": false
+        },
+        {
+          "order": 99,
+          "id": "99_reset",
+          "file": "06_sql_injection.rollback.sql",
+          "path": "issue-injection/06_sql_injection.rollback.sql",
+          "kind": "sql",
+          "title": "주입 원복 — 취약 proc 제거",
+          "destructive": true,
+          "manual": false,
+          "injectionReset": true
         }
       ]
     },

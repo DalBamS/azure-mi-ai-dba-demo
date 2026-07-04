@@ -50,7 +50,7 @@ describe("HTTP API (mock)", () => {
     expect(body.version).toBe(1);
     expect(body.demos).toHaveLength(11);
     expect(body.demos.reduce((n: number, d: { steps: unknown[] }) => n + d.steps.length, 0)).toBe(
-      64,
+      72,
     );
   });
 
