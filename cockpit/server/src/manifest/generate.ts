@@ -28,6 +28,11 @@ const KIND_BY_EXT: Record<string, StepKind> = {
 const DESTRUCTIVE =
   /(rollback|remediate|apply|cleanup|inject|reset|drop|risky|alter|\.down(?:\.sql)?$)/i;
 
+const ANALYSIS_ONLY = new Set<string>([
+  "demos/cicd/J-pr-risk-review/sample-migrations/risky_alter_inventory.sql",
+  "demos/cicd/J-pr-risk-review/sample-migrations/risky_drop_column.sql",
+]);
+
 function kindForFile(file: string): StepKind | null {
   return KIND_BY_EXT[path.extname(file).toLowerCase()] ?? null;
 }
@@ -159,6 +164,7 @@ function buildSteps(repoRoot: string, demoAbs: string, readmeAbs: string | null)
 
       // Demo-relative POSIX path, e.g. "migrations/001_add_x.up.sql".
       const rel = path.relative(demoAbs, abs).split(path.sep).join("/");
+      const repoRel = toRepoRelative(repoRoot, abs);
       const id = rel.replace(/\.[^.]+$/, "");
       const leaf = path.basename(entry.name).replace(/\.[^.]+$/, "");
 
@@ -167,11 +173,12 @@ function buildSteps(repoRoot: string, demoAbs: string, readmeAbs: string | null)
           order: orderForId(leaf),
           id,
           file: rel,
-          path: toRepoRelative(repoRoot, abs),
+          path: repoRel,
           kind,
           title: titleForId(leaf),
           destructive: DESTRUCTIVE.test(rel),
           manual: kind === "md",
+          analysisOnly: ANALYSIS_ONLY.has(repoRel),
         } satisfies Step),
       );
     }
@@ -267,6 +274,16 @@ function withoutGeneratedAt(manifest: Manifest): Manifest {
   return { ...manifest, generatedAt: "" };
 }
 
+function manifestJson(manifest: Manifest): string {
+  return (
+    JSON.stringify(
+      manifest,
+      (key, value) => (key === "analysisOnly" && value === false ? undefined : value),
+      2,
+    ) + "\n"
+  );
+}
+
 export function preserveGeneratedAtIfUnchanged(repoRoot: string, manifest: Manifest): Manifest {
   const out = manifestAbsPath(repoRoot);
   if (!fs.existsSync(out)) return manifest;
@@ -290,7 +307,7 @@ function main(): void {
   const repoRoot = findRepoRoot();
   const manifest = preserveGeneratedAtIfUnchanged(repoRoot, buildManifest(repoRoot));
   const out = manifestAbsPath(repoRoot);
-  fs.writeFileSync(out, JSON.stringify(manifest, null, 2) + "\n", "utf8");
+  fs.writeFileSync(out, manifestJson(manifest), "utf8");
   const stepCount = manifest.demos.reduce((n, d) => n + d.steps.length, 0);
   console.log(
     `Wrote ${toRepoRelative(repoRoot, out)} — ${manifest.demos.length} demos, ${stepCount} steps.`,

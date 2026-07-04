@@ -659,7 +659,8 @@
           "kind": "sql",
           "title": "risky alter inventory",
           "destructive": true,
-          "manual": false
+          "manual": false,
+          "analysisOnly": true
         },
         {
           "order": 0,
@@ -669,7 +670,8 @@
           "kind": "sql",
           "title": "risky drop column",
           "destructive": true,
-          "manual": false
+          "manual": false,
+          "analysisOnly": true
         },
         {
           "order": 0,

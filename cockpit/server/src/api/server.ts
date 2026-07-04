@@ -81,6 +81,10 @@ export function createApp(opts: AppOptions = {}): Express {
       res.status(404).json({ error: `step not found: ${parsed.data.stepId}` });
       return;
     }
+    if (step.analysisOnly) {
+      res.status(403).json({ error: "analysis-only step is not executable", stepId: step.id });
+      return;
+    }
     try {
       const result = await runner.run(demo, step, {
         database: parsed.data.database,

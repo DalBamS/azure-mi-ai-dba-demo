@@ -41,6 +41,19 @@ export class LiveRunner implements Runner {
       startedAt,
     };
 
+    if (step.analysisOnly === true) {
+      return {
+        ...base,
+        manual: true,
+        skipped: true,
+        exitCode: 0,
+        durationMs: 0,
+        command: "(analysis-only) not executed",
+        stdout: "Analysis-only step — intentionally-risky sample for AI review. Not executed.",
+        stderr: "",
+      };
+    }
+
     if (step.kind === "md") {
       return {
         ...base,

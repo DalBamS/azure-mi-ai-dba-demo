@@ -88,6 +88,25 @@ describe("manifest", () => {
     }
   });
 
+  it("marks only the two Demo J risky sample migrations as analysis-only", () => {
+    const analysisOnlyPaths = [
+      "demos/cicd/J-pr-risk-review/sample-migrations/risky_alter_inventory.sql",
+      "demos/cicd/J-pr-risk-review/sample-migrations/risky_drop_column.sql",
+    ];
+    const marked = manifest.demos.flatMap((demo) =>
+      demo.steps.filter((step) => step.analysisOnly).map((step) => step.path),
+    );
+
+    expect(marked.sort()).toEqual([...analysisOnlyPaths].sort());
+    for (const demo of manifest.demos) {
+      for (const step of demo.steps) {
+        expect(Boolean(step.analysisOnly), `${demo.id}/${step.id} analysisOnly`).toBe(
+          analysisOnlyPaths.includes(step.path),
+        );
+      }
+    }
+  });
+
   it("orders cicd nested assets by README narrative", () => {
     expect(findDemo(manifest, "I")?.steps.map((s) => s.id)).toEqual([
       "prompts/nl-request",
@@ -189,6 +208,7 @@ describe("mock runner contacts no Managed Instance", () => {
 
     let executed = 0;
     let manual = 0;
+    let analysisOnly = 0;
     for (const demo of manifest.demos) {
       for (const step of demo.steps) {
         const res = await runner.run(demo, step);
@@ -200,7 +220,13 @@ describe("mock runner contacts no Managed Instance", () => {
         expect(res.command).not.toMatch(/-P\s+\S/);
         expect(FORBIDDEN.test(res.command + res.stdout)).toBe(false);
 
-        if (step.kind === "md") {
+        if (step.analysisOnly) {
+          expect(res.manual).toBe(true);
+          expect(res.skipped).toBe(true);
+          expect(res.command).toBe("(analysis-only) not executed");
+          expect(res.stdout).toContain("Analysis-only step");
+          analysisOnly++;
+        } else if (step.kind === "md") {
           expect(res.manual).toBe(true);
           expect(res.skipped).toBe(true);
           manual++;
@@ -216,7 +242,28 @@ describe("mock runner contacts no Managed Instance", () => {
     expect(executed).toBeGreaterThan(0);
     // Sanity: total steps covered equals the manifest's step count.
     const total = manifest.demos.reduce((n, d) => n + d.steps.length, 0);
-    expect(executed + manual).toBe(total);
+    expect(executed + manual + analysisOnly).toBe(total);
+  });
+
+  it("returns an analysis-only refusal instead of simulating risky sample migrations", async () => {
+    const runner = new MockRunner();
+    const demo = findDemo(manifest, "J")!;
+    const step = demo.steps.find((s) => s.id === "sample-migrations/risky_drop_column")!;
+
+    const res = await runner.run(demo, step);
+
+    expect(res).toMatchObject({
+      mocked: true,
+      manual: true,
+      skipped: true,
+      exitCode: 0,
+      durationMs: 0,
+      command: "(analysis-only) not executed",
+      stdout: "Analysis-only step — intentionally-risky sample for AI review. Not executed.",
+      stderr: "",
+    });
+    expect(res.stdout).not.toContain("MOCK RUN");
+    expect(res.stdout).not.toContain("no Managed Instance was contacted");
   });
 
   it("returns a mocked eval failure without exposing live connectivity", async () => {

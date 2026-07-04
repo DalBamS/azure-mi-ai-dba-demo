@@ -20,6 +20,8 @@ const KIND_STYLE: Record<Step["kind"], string> = {
   md: "bg-zinc-500/15 text-zinc-400",
 };
 
+const ANALYSIS_ONLY_DESCRIPTION = "의도적으로 위험한 샘플 — AI 진단 대상, 실행 안 함";
+
 interface Props {
   step: Step;
   running: boolean;
@@ -31,6 +33,7 @@ export function StepItem({ step, running, active, onRun }: Props) {
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const runNow = () => {
+    if (step.analysisOnly) return;
     if (step.destructive) setConfirmOpen(true);
     else onRun(step);
   };
@@ -56,6 +59,11 @@ export function StepItem({ step, running, active, onRun }: Props) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="truncate text-sm font-medium">{step.title}</span>
+          {step.analysisOnly && (
+            <Badge className="gap-1 border-yellow-500/40 bg-yellow-500/15 text-yellow-300">
+              <ShieldAlert className="h-3 w-3" /> 분석 전용
+            </Badge>
+          )}
           {step.destructive && (
             <Badge variant="destructive" className="gap-1">
               <ShieldAlert className="h-3 w-3" /> 파괴적
@@ -68,11 +76,14 @@ export function StepItem({ step, running, active, onRun }: Props) {
           )}
         </div>
         <div className="truncate font-mono text-[11px] text-muted-foreground">{step.file}</div>
+        {step.analysisOnly && (
+          <div className="mt-0.5 text-xs text-yellow-300">{ANALYSIS_ONLY_DESCRIPTION}</div>
+        )}
       </div>
       <Button
         size="sm"
-        variant={step.destructive ? "destructive" : step.manual ? "secondary" : "default"}
-        disabled={running}
+        variant={step.analysisOnly || step.manual ? "secondary" : step.destructive ? "destructive" : "default"}
+        disabled={running || step.analysisOnly}
         onClick={runNow}
       >
         {running ? (
@@ -80,7 +91,7 @@ export function StepItem({ step, running, active, onRun }: Props) {
         ) : (
           <Play className="h-3.5 w-3.5" />
         )}
-        {step.manual ? "열기" : "실행"}
+        {step.analysisOnly ? "실행 불가" : step.manual ? "열기" : "실행"}
       </Button>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>

@@ -32,6 +32,10 @@ export const StepSchema = z.object({
   destructive: z.boolean(),
   /** True when this step is documentation-only (kind === "md"). */
   manual: z.boolean(),
+  /** True when this step is intentionally NOT executable — a deliberately-risky
+   * sample meant to be ANALYZED by the AI review agent, never run. The runner and
+   * API must refuse to execute it. */
+  analysisOnly: z.boolean().default(false),
 });
 export type Step = z.infer<typeof StepSchema>;
 

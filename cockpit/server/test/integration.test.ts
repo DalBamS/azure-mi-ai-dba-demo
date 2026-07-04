@@ -44,10 +44,15 @@ describe("integration (mock, end-to-end)", () => {
   it("runs every runnable step of every demo through the HTTP API", async () => {
     const demos = await (await fetch(`${base}/api/demos`)).json();
     let ran = 0;
+    let analysisOnly = 0;
 
     for (const summary of demos as Array<{ id: string }>) {
       const demo = await (await fetch(`${base}/api/demos/${summary.id}`)).json();
-      for (const step of demo.steps as Array<{ id: string; kind: string }>) {
+      for (const step of demo.steps as Array<{ id: string; kind: string; analysisOnly?: boolean }>) {
+        if (step.analysisOnly) {
+          analysisOnly++;
+          continue;
+        }
         const res = await (
           await fetch(`${base}/api/run`, {
             method: "POST",
@@ -68,8 +73,9 @@ describe("integration (mock, end-to-end)", () => {
       }
     }
 
-    // 11 demos, 64 steps total in the manifest.
-    expect(ran).toBe(64);
+    // 11 demos, 64 steps total: 62 runnable, 2 analysis-only samples blocked by design.
+    expect(ran).toBe(62);
+    expect(analysisOnly).toBe(2);
   });
 
   it("exposes the mocked eval FAIL path through the real HTTP wiring", async () => {
