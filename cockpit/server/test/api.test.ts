@@ -1,16 +1,17 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { createApp } from "../src/api/server.js";
-import { MockRunner } from "../src/runner/index.js";
+import { MockRunner, type Runner } from "../src/runner/index.js";
 import { loadManifest } from "../src/manifest/load.js";
 
 let server: Server;
 let base: string;
+const manifest = loadManifest();
 
 beforeAll(async () => {
   // Force mock runner explicitly so the API self-test never contacts a MI.
-  const app = createApp({ manifest: loadManifest(), runner: new MockRunner() });
+  const app = createApp({ manifest, runner: new MockRunner() });
   await new Promise<void>((resolve) => {
     server = app.listen(0, () => {
       const { port } = server.address() as AddressInfo;
@@ -128,5 +129,36 @@ describe("HTTP API (mock)", () => {
       body: JSON.stringify({ demoId: "A", stepId: "99_nope" }),
     });
     expect(res.status).toBe(404);
+  });
+
+  it("POST /api/run rejects analysis-only steps before runner execution", async () => {
+    const runner: Runner = {
+      mode: "mock",
+      run: vi.fn(),
+    };
+    const app = createApp({ manifest, runner });
+    const localServer = await new Promise<Server>((resolve) => {
+      const listening = app.listen(0, () => resolve(listening));
+    });
+    const { port } = localServer.address() as AddressInfo;
+
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/api/run`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          demoId: "J",
+          stepId: "sample-migrations/risky_drop_column",
+        }),
+      });
+      expect(res.status).toBe(403);
+      await expect(res.json()).resolves.toEqual({
+        error: "analysis-only step is not executable",
+        stepId: "sample-migrations/risky_drop_column",
+      });
+      expect(runner.run).not.toHaveBeenCalled();
+    } finally {
+      await new Promise<void>((resolve) => localServer.close(() => resolve()));
+    }
   });
 });

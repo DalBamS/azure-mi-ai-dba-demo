@@ -10,6 +10,7 @@ export interface Step {
   title: string;
   destructive: boolean;
   manual: boolean;
+  analysisOnly?: boolean;
 }
 
 export interface Demo {

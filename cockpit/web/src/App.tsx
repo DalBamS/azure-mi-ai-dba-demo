@@ -60,7 +60,7 @@ export default function App() {
 
   const runAllSafe = useCallback(async () => {
     if (!demo) return;
-    const steps = demo.steps.filter((s) => !s.destructive && !s.manual);
+    const steps = demo.steps.filter((s) => !s.analysisOnly && !s.destructive && !s.manual);
     for (const step of steps) {
       setRunningStep(step.id);
       try {

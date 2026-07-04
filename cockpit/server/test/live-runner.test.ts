@@ -88,4 +88,28 @@ describe("live runner safety boundaries", () => {
 
     expect(capturedArgs).not.toContain("fail");
   });
+
+  it("refuses analysis-only steps before spawning a live process", async () => {
+    const runner = new LiveRunner({
+      COCKPIT_ALLOW_LIVE: "1",
+      SQLMI_SERVER: "example.invalid",
+      SQLMI_DATABASE: "gamedb",
+    });
+    const demo = findDemo(manifest, "J")!;
+    const step = demo.steps.find((s) => s.id === "sample-migrations/risky_drop_column")!;
+
+    const result = await runner.run(demo, step);
+
+    expect(spawn).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      mocked: false,
+      manual: true,
+      skipped: true,
+      exitCode: 0,
+      durationMs: 0,
+      command: "(analysis-only) not executed",
+      stdout: "Analysis-only step — intentionally-risky sample for AI review. Not executed.",
+      stderr: "",
+    });
+  });
 });
