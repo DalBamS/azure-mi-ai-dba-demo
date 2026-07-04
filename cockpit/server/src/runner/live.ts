@@ -67,10 +67,20 @@ export class LiveRunner implements Runner {
       };
     }
 
+    const started = Date.now();
+    if (step.concurrentPaths?.length) {
+      const result = await this.runConcurrentSql(step, database);
+      return {
+        ...base,
+        manual: false,
+        skipped: false,
+        durationMs: Date.now() - started,
+        ...result,
+      };
+    }
+
     const abs = path.join(this.repoRoot, step.path);
     const { file, args, redacted } = this.buildInvocation(step, abs, database);
-
-    const started = Date.now();
     const { exitCode, stdout, stderr } = await this.spawn(file, args);
     return {
       ...base,
@@ -81,6 +91,42 @@ export class LiveRunner implements Runner {
       command: redacted,
       stdout,
       stderr,
+    };
+  }
+
+  private async runConcurrentSql(
+    step: Step,
+    database: string,
+  ): Promise<{ exitCode: number; command: string; stdout: string; stderr: string }> {
+    if (step.kind !== "sql") {
+      throw new Error(`concurrentPaths is only supported for sql steps: ${step.id}`);
+    }
+
+    const invocations = step.concurrentPaths!.map((repoRel, index) => {
+      const label = `SESSION ${String.fromCharCode(65 + index)}`;
+      const abs = path.join(this.repoRoot, repoRel);
+      return { label, repoRel, ...this.buildInvocation(step, abs, database) };
+    });
+
+    const results = await Promise.all(
+      invocations.map((invocation) => this.spawn(invocation.file, invocation.args)),
+    );
+
+    return {
+      exitCode: Math.max(...results.map((result) => result.exitCode)),
+      command: invocations.map((invocation) => `[${invocation.label}] ${invocation.redacted}`).join("\n"),
+      stdout: results
+        .map((result, index) =>
+          this.labelOutput(invocations[index]!.label, invocations[index]!.repoRel, result.stdout),
+        )
+        .filter(Boolean)
+        .join("\n"),
+      stderr: results
+        .map((result, index) =>
+          this.labelOutput(invocations[index]!.label, invocations[index]!.repoRel, result.stderr),
+        )
+        .filter(Boolean)
+        .join("\n"),
     };
   }
 
@@ -163,5 +209,10 @@ export class LiveRunner implements Runner {
       });
       child.on("close", (code) => resolve({ exitCode: code ?? 0, stdout, stderr }));
     });
+  }
+
+  private labelOutput(label: string, repoRel: string, output: string): string {
+    if (!output) return "";
+    return `[${label}] ${repoRel}\n${output.trimEnd()}`;
   }
 }

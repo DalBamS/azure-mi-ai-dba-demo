@@ -70,6 +70,15 @@ export class MockRunner implements Runner {
   }
 
   private describeCommand(demo: Demo, step: Step, database: string): string {
+    if (step.concurrentPaths?.length) {
+      return step.concurrentPaths
+        .map((repoRel, index) => {
+          const label = `SESSION ${String.fromCharCode(65 + index)}`;
+          return `[mock][${label}] sqlcmd -d ${database} -i ${repoRel}`;
+        })
+        .join("\n");
+    }
+
     switch (step.kind) {
       case "sql":
         return `[mock] sqlcmd -d ${database} -i ${step.path}`;
@@ -103,6 +112,19 @@ export class MockRunner implements Runner {
   }
 
   private simulateSql(step: Step, variant: "pass" | "fail"): string {
+    if (step.concurrentPaths?.length) {
+      return step.concurrentPaths
+        .map((repoRel, index) => {
+          const label = `SESSION ${String.fromCharCode(65 + index)}`;
+          const outcome =
+            index === 0
+              ? "completed transaction after peer rollback (simulated)"
+              : "deadlock victim 1205 captured and handled (simulated)";
+          return `[${label}] ${repoRel}\n${outcome}\nCommands completed successfully.`;
+        })
+        .join("\n");
+    }
+
     if (step.destructive) {
       return (
         `(mock) applied change set for '${step.id}'.\n` +
