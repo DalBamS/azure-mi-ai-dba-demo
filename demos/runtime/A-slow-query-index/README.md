@@ -48,4 +48,12 @@
 - **논리읽기(logical reads)**: `03_eval.sql`의 `SET STATISTICS IO` 출력에서 인덱스 적용 전(clustered index **Scan**, 전체 페이지 읽기) vs 후(**Seek** + 소수 페이지) 읽기 수가 수십~수백 배 차이 나는 것을 나란히 보여주기.
 - **실행계획 연산자**: 적용 전 `Clustered Index Scan` + `Sort` → 적용 후 `Index Seek`(정렬 불필요)로 바뀌는 그림이 가장 설득력 있음.
 - **확장성 메시지**: "지금은 데모 규모라 밀리초지만, 이 스캔은 데이터가 커질수록 선형으로 악화된다"로 프로덕션 함의를 연결.
-- (선택) 체감 격차를 키우려면 시드를 늘려 데모: 예) 여러 시즌 × 대량 player로 leaderboard를 확장(`schema\seed\01_seed.sql` 규모 조정 또는 반복 INSERT)해 스캔 비용을 물리적으로 키움. 규모 확대 시 데모 후 정리를 잊지 말 것.
+- (선택) 체감 격차를 키우려면 시드를 늘려 데모: 여러 시즌으로 leaderboard를 확장해 스캔 비용을 물리적으로 키움. `01_reproduce.sql`은 `season = 1`만 조회하므로, season을 대량 추가하면 **결과셋(season=1)은 그대로인데 스캔 비용만 커져** seek vs scan 격차가 극대화된다. 전용 스크립트 `scripts\inflate-leaderboard.ps1`(멱등·가역)을 사용:
+  ```powershell
+  # 1) 대용량화 — season=1 행을 season 2..501로 복제(약 50만행, 아래 수치는 가이드일 뿐 실측 아님)
+  .\scripts\inflate-leaderboard.ps1 -Seasons 500
+  # 2) cockpit에서 A/00_inject → 01_reproduce → scan 계획으로 logical reads 급증 확인
+  # 3) 발표 후 정리(원복) — season=1 원본만 남기고 나머지 삭제
+  .\scripts\inflate-leaderboard.ps1 -Reset
+  ```
+  `-Seasons` 값을 높일수록 스캔 페이지 수가 늘어 **wall-clock(경과시간) 체감도 커진다**(제시 수치는 실측이 아닌 가이드). 규모 확대 시 데모 후 `-Reset` 정리를 잊지 말 것.
