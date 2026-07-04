@@ -48,3 +48,20 @@
 1. **규모 확대(권장, 가장 자연스러움)**: `.\scripts\seed.ps1 -Profile default`(matches 200k)로 시드하거나 `matches`를 충분히 키웁니다. `player_id`가 낮은 값에 몰리도록 분포를 왜곡하면(예: 소수 플레이어가 대량 매치 보유) 작은 `@maxPlayer`는 Index Seek(소수 행)로, 큰 `@maxPlayer`는 Scan + Hash Aggregate가 최적이 되어 plan이 확실히 갈립니다.
 2. **Query Store 강제 플랜**: smoke 규모에서도 데모를 확정적으로 연출하려면, 작은 파라미터로 sniff된 plan을 Query Store에서 `sp_query_store_force_plan`으로 강제해 큰 파라미터 호출이 그 plan을 재사용하도록 만들면 회귀를 결정적으로 재현할 수 있습니다.
 3. 스키마/쿼리를 바꿔 plan 분기를 강제할 경우, `issue-injection\03_plan_regression.sql` 및 `03_eval.sql`과 정합을 반드시 맞추세요.
+
+## 대용량 matches inflate로 회귀 가시화
+
+smoke 규모(matches 5,000)에서는 작은 파라미터로 prime된 plan을 typical call이 재사용해도 SORT/hash spill이 눈에 띄지 않을 수 있습니다. 회귀를 발표에서 보이게 하려면 cockpit C 실행 전에 `dbo.matches`를 수백만 행 규모로 키웁니다. 전용 스크립트는 기존 `dbo.players`를 재사용하므로 FK-safe이고, `match_id >= 1000000000` 범위만 사용해 멱등·가역으로 정리할 수 있습니다.
+
+```powershell
+# 1) 대용량화 — 아래 수치는 가이드일 뿐 실측 아님
+.\scripts\inflate-matches.ps1 -Rows 2000000
+
+# 2) cockpit에서 C/00_inject → tiny @maxPlayer plan prime
+# 3) C/01_reproduce → typical large-parameter call이 skewed plan을 재사용하며 spill 확인
+
+# 4) 발표 후 정리(원복)
+.\scripts\inflate-matches.ps1 -Reset
+```
+
+읽기량, elapsed time, spill 정도는 `-Rows` 값과 MI 상태에 따라 달라지며, 위 숫자는 실측값이 아니라 데모 규모 가이드입니다.

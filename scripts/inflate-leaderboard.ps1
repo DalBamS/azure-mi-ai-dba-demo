@@ -1,32 +1,32 @@
 <#
-    scripts\inflate-leaderboard.ps1 — 데모 A(느린쿼리·인덱스) 전용, 가역적 대용량화.
+    scripts\inflate-leaderboard.ps1 — Demo A reversible row inflation for season=1.
 
-    목적:
-        데모 A는 `issue-injection\01_missing_index.sql`로 IX_leaderboard_rating 을
-        DROP 한 뒤 `demos\runtime\A-slow-query-index\01_reproduce.sql` 의
+    Purpose:
+        Demo A drops IX_leaderboard_rating, then runs:
             SELECT TOP(100) ... FROM dbo.leaderboard WHERE season = 1 ORDER BY rating DESC
-        가 풀스캔되게 만드는 데모다. 그러나 smoke 시드(season=1, player당 1행 ≈ 1000행)
-        규모에선 인덱스 유무와 무관하게 logical reads 가 거의 같아 seek vs scan 격차가
-        눈에 띄지 않는다.
-        이 쿼리는 season=1 만 조회하므로, season 을 대량 추가하면 결과셋(season=1)은
-        작게 유지되면서 스캔 비용만 커진다 → 인덱스 seek(싸다) vs 풀스캔(비싸다) 격차가
-        극대화되어 logical reads / wall-clock 체감이 살아난다.
 
-    사용법:
-        .\scripts\inflate-leaderboard.ps1 -Seasons 500     # 대용량화(멱등)
-        .\scripts\inflate-leaderboard.ps1 -Reset           # 원복(season=1 원본만 남김)
-        .\scripts\inflate-leaderboard.ps1 -Seasons 500 -Database gamedb
+        Because PK_leaderboard is clustered on (season, player_id), filtering season=1 is
+        still a cheap clustered seek when season=1 has only the smoke-seed rows. The demo
+        becomes visible by adding many synthetic rows to season=1 itself: without the
+        rating index SQL Server must read all season=1 rows and sort, while remediation
+        restores the covering/order-friendly IX_leaderboard_rating path.
 
-    원복법:
-        -Reset 으로 season <> 1 행을 모두 삭제 → 완전 가역.
+    Usage:
+        .\scripts\inflate-leaderboard.ps1 -Rows 300000
+        .\scripts\inflate-leaderboard.ps1 -Reset
+        .\scripts\inflate-leaderboard.ps1 -Rows 300000 -Database gamedb
 
-    주의:
-        데모 A 전용 셋업이다. 발표가 끝나면 반드시 `-Reset` 으로 정리하라.
-        비밀 하드코딩 없음 — 접속 정보는 전부 .env / 환경변수 기반(lib.ps1 재사용).
+    Reset:
+        -Reset deletes only synthetic player_id > 1000000 leaderboard rows. Original
+        season=1 rows and indexes are left untouched.
+
+    Notes:
+        Demo A setup only. Run -Reset after the presentation.
+        No secrets are hardcoded; connection settings come from .env / environment via lib.ps1.
 #>
 [CmdletBinding()]
 param(
-    [int] $Seasons = 500,
+    [int] $Rows = 300000,
     [switch] $Reset,
     [string] $Database
 )
@@ -35,40 +35,73 @@ $ErrorActionPreference = 'Stop'
 . "$PSScriptRoot\lib.ps1"
 Import-DotEnv
 
+if ($Rows -lt 1) { throw "Rows must be >= 1 (got $Rows)." }
+
 $connArgs = Get-SqlcmdArgs -Database $Database
 
 if ($Reset) {
-    Write-Warning 'Reset requested: deleting inflated leaderboard rows (season <> 1)...'
+    Write-Warning 'Reset requested: deleting synthetic leaderboard rows (player_id > 1000000)...'
     $resetSql = @'
 SET NOCOUNT ON;
-DELETE FROM dbo.leaderboard WHERE season <> 1;
-SELECT COUNT(*) AS leaderboard_rows FROM dbo.leaderboard;
+DELETE FROM dbo.leaderboard WHERE player_id > 1000000;
+SELECT
+    COUNT(*) AS leaderboard_rows,
+    COUNT(CASE WHEN season = 1 THEN 1 END) AS season_1_rows,
+    COUNT(CASE WHEN player_id > 1000000 THEN 1 END) AS synthetic_rows
+FROM dbo.leaderboard;
 '@
     & sqlcmd @connArgs -b -Q $resetSql
     if ($LASTEXITCODE -ne 0) { throw "Reset failed (exit $LASTEXITCODE)." }
-    Write-Host 'Reset complete (season=1 원본만 남음).' -ForegroundColor Green
+    Write-Host 'Reset complete (synthetic leaderboard rows removed).' -ForegroundColor Green
     return
 }
 
-if ($Seasons -lt 1) { throw "Seasons must be >= 1 (got $Seasons)." }
-
-# 멱등·집합기반 inflate: season=1 행을 복제해 season = 2..(1+Seasons) 생성.
-# PK_leaderboard(season, player_id) 이므로 IF NOT EXISTS 로 중복(재실행)을 회피한다.
 $inflateSql = @'
 SET NOCOUNT ON;
-DECLARE @s INT = 2, @max INT = 1 + $(Seasons);
-WHILE @s <= @max
+
+IF EXISTS (SELECT 1 FROM dbo.leaderboard WHERE player_id > 1000000)
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM dbo.leaderboard WHERE season = @s)
-        INSERT dbo.leaderboard (season, player_id, rating, wins, losses, rank_pos)
-        SELECT @s, player_id, rating, wins, losses, rank_pos
-        FROM dbo.leaderboard WHERE season = 1;
-    SET @s += 1;
+    PRINT 'Synthetic leaderboard rows already exist (player_id > 1000000); skipping inflate.';
 END
-SELECT COUNT(*) AS leaderboard_rows FROM dbo.leaderboard;
+ELSE
+BEGIN
+    PRINT 'Disabling FK_leaderboard_players for synthetic player_id values...';
+    ALTER TABLE dbo.leaderboard NOCHECK CONSTRAINT FK_leaderboard_players;
+
+    BEGIN TRY
+        ;WITH n AS (
+            SELECT TOP ($(Rows))
+                ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS rn
+            FROM sys.all_objects AS a
+            CROSS JOIN sys.all_objects AS b
+            CROSS JOIN sys.all_objects AS c
+        )
+        INSERT dbo.leaderboard (season, player_id, rating, wins, losses, rank_pos)
+        SELECT
+            CAST(1 AS smallint) AS season,
+            1000000 + rn AS player_id,
+            ABS(CHECKSUM(NEWID())) % 4000 + 500 AS rating,
+            ABS(CHECKSUM(NEWID())) % 100 AS wins,
+            ABS(CHECKSUM(NEWID())) % 100 AS losses,
+            NULL AS rank_pos
+        FROM n;
+
+        ALTER TABLE dbo.leaderboard CHECK CONSTRAINT FK_leaderboard_players;
+    END TRY
+    BEGIN CATCH
+        ALTER TABLE dbo.leaderboard CHECK CONSTRAINT FK_leaderboard_players;
+        THROW;
+    END CATCH
+END
+
+SELECT
+    COUNT(*) AS leaderboard_rows,
+    COUNT(CASE WHEN season = 1 THEN 1 END) AS season_1_rows,
+    COUNT(CASE WHEN player_id > 1000000 THEN 1 END) AS synthetic_rows
+FROM dbo.leaderboard;
 '@
 
-Write-Host "Inflating leaderboard: season 2..$((1 + $Seasons)) (from season=1 template)..."
-& sqlcmd @connArgs -b -Q $inflateSql -v Seasons=$Seasons
+Write-Host "Inflating leaderboard season=1 with $Rows synthetic rows..."
+& sqlcmd @connArgs -b -Q $inflateSql -v Rows=$Rows
 if ($LASTEXITCODE -ne 0) { throw "Inflate failed (exit $LASTEXITCODE)." }
-Write-Host 'Inflate complete. 발표 후 정리: .\scripts\inflate-leaderboard.ps1 -Reset' -ForegroundColor Green
+Write-Host 'Inflate complete. After the demo, run: .\scripts\inflate-leaderboard.ps1 -Reset' -ForegroundColor Green

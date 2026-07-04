@@ -42,18 +42,19 @@
 - `SET STATISTICS IO/TIME` 기준 logical reads가 유의미하게 감소.
 
 ## 임팩트 강조 (발표 팁)
-> ⚠ 기본 시드 규모(leaderboard가 player당 ~1행, ≤100k)에선 인덱스 DROP 후에도 **wall-clock(경과시간) 차이가 sub-second**라 청중이 체감하기 어려울 수 있습니다. 시간 숫자 대신 아래 **구조적 근거**를 임팩트 포인트로 제시하세요.
+> ⚠ 기본 시드 규모(leaderboard가 player당 ~1행, ≤100k)에선 인덱스 DROP 후에도 **wall-clock(경과시간) 차이가 sub-second**라 청중이 체감하기 어려울 수 있습니다.
 >
-> 라이브 MI 검증(smoke 시드, leaderboard 992행)에서도 wall-clock은 sub-second였고 논리읽기 차이도 **9 vs 2**로 작게 나왔습니다. 즉 임팩트는 시간이 아니라 **논리읽기(logical reads)와 플랜 형태(Index Seek + 정렬 제거 vs Clustered Index Scan + Sort)**로 보는 것이 정확합니다.
-- **논리읽기(logical reads)**: `03_eval.sql`의 `SET STATISTICS IO` 출력에서 인덱스 적용 전(clustered index **Scan**, 전체 페이지 읽기) vs 후(**Seek** + 소수 페이지) 읽기 수가 수십~수백 배 차이 나는 것을 나란히 보여주기.
-- **실행계획 연산자**: 적용 전 `Clustered Index Scan` + `Sort` → 적용 후 `Index Seek`(정렬 불필요)로 바뀌는 그림이 가장 설득력 있음.
-- **확장성 메시지**: "지금은 데모 규모라 밀리초지만, 이 스캔은 데이터가 커질수록 선형으로 악화된다"로 프로덕션 함의를 연결.
-- (선택) 체감 격차를 키우려면 시드를 늘려 데모: 여러 시즌으로 leaderboard를 확장해 스캔 비용을 물리적으로 키움. `01_reproduce.sql`은 `season = 1`만 조회하므로, season을 대량 추가하면 **결과셋(season=1)은 그대로인데 스캔 비용만 커져** seek vs scan 격차가 극대화된다. 전용 스크립트 `scripts\inflate-leaderboard.ps1`(멱등·가역)을 사용:
+> 라이브 MI 검증(smoke 시드, leaderboard 992행)에서도 wall-clock은 sub-second였고 논리읽기 차이도 **9 vs 2**로 작게 나왔습니다. 핵심은 `PK_leaderboard`가 `(season, player_id)` 클러스터드라 `WHERE season = 1` 자체는 항상 저렴한 seek라는 점입니다. 차이를 키우는 레버는 **season=1 행 수**입니다.
+- **논리읽기(logical reads)**: season=1 행을 늘린 뒤 `01_reproduce.sql`에서 인덱스 누락 상태의 clustered seek + many-row read + `Sort`가 높은 읽기량/시간을 만드는지 보여주기.
+- **실행계획 연산자**: `A/00_inject`로 `IX_leaderboard_rating`을 DROP하면 많은 season=1 행을 읽고 정렬하고, `04_remediate.sql`로 인덱스를 복구하면 `Index Seek`(정렬 불필요) 경로로 돌아오는 그림이 가장 설득력 있음.
+- **확장성 메시지**: "season=1 데이터가 커질수록 정렬 비용과 읽기량이 선형 이상으로 악화된다"로 프로덕션 함의를 연결.
+- 체감 격차를 키우려면 전용 스크립트 `scripts\inflate-leaderboard.ps1`(멱등·가역)으로 season=1 자체에 synthetic rows를 추가합니다:
   ```powershell
-  # 1) 대용량화 — season=1 행을 season 2..501로 복제(약 50만행, 아래 수치는 가이드일 뿐 실측 아님)
-  .\scripts\inflate-leaderboard.ps1 -Seasons 500
-  # 2) cockpit에서 A/00_inject → 01_reproduce → scan 계획으로 logical reads 급증 확인
-  # 3) 발표 후 정리(원복) — season=1 원본만 남기고 나머지 삭제
+  # 1) 대용량화 — season=1에 synthetic rows 추가(아래 수치는 가이드일 뿐 실측 아님)
+  .\scripts\inflate-leaderboard.ps1 -Rows 300000
+  # 2) cockpit에서 A/00_inject → 01_reproduce → many season=1 rows scan/sort 확인
+  # 3) 04_remediate로 IX_leaderboard_rating 복구 → 빠른 seek/order-friendly 경로 확인
+  # 4) 발표 후 정리(원복) — synthetic player_id rows만 삭제
   .\scripts\inflate-leaderboard.ps1 -Reset
   ```
-  `-Seasons` 값을 높일수록 스캔 페이지 수가 늘어 **wall-clock(경과시간) 체감도 커진다**(제시 수치는 실측이 아닌 가이드). 규모 확대 시 데모 후 `-Reset` 정리를 잊지 말 것.
+  읽기량/시간은 `-Rows` 값과 MI 상태에 따라 달라지며, 위 숫자는 실측값이 아니라 데모 규모 가이드입니다. 규모 확대 시 데모 후 `-Reset` 정리를 잊지 말 것.
