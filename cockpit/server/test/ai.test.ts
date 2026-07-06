@@ -2,7 +2,13 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
 import { buildMessages } from "../src/ai/prompt.js";
-import { MockAiClient, createAiClient, type AiClient } from "../src/ai/client.js";
+import {
+  DEFAULT_SLM_MODEL,
+  LiveAiClient,
+  MockAiClient,
+  createAiClient,
+  type AiClient,
+} from "../src/ai/client.js";
 import { createApp } from "../src/api/server.js";
 import { loadManifest } from "../src/manifest/load.js";
 import { MockRunner } from "../src/runner/index.js";
@@ -52,6 +58,52 @@ describe("MockAiClient", () => {
     expect(first.answerMarkdown).toContain("### AI 진단");
     expect(first.answerMarkdown).toBe(second.answerMarkdown);
     expect(JSON.stringify(first)).not.toContain("secret-key-in-question");
+  });
+});
+
+describe("LiveAiClient", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("uses qwen2.5 defaults and Ollama keep-alive request options", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content: "진단 결과" } }],
+        }),
+        { status: 200 },
+      ),
+    );
+    const client = new LiveAiClient({
+      COCKPIT_MODE: "live",
+      COCKPIT_ALLOW_LIVE: "1",
+      SLM_ENDPOINT: "http://127.0.0.1:11434/v1",
+    });
+
+    const result = await client.ask({
+      demoId: "A",
+      question: "랭킹 조회가 느려요",
+      contextText: "table=dbo.leaderboard column=rating",
+    });
+
+    expect(result).toMatchObject({
+      answerMarkdown: "진단 결과",
+      model: DEFAULT_SLM_MODEL,
+      mode: "live",
+      mocked: false,
+    });
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(url).toBe("http://127.0.0.1:11434/v1/chat/completions");
+    expect(init?.signal).toBeInstanceOf(AbortSignal);
+    expect(JSON.parse(init?.body as string)).toMatchObject({
+      model: "qwen2.5:3b",
+      stream: false,
+      temperature: 0.2,
+      max_tokens: 256,
+      keep_alive: -1,
+    });
   });
 });
 

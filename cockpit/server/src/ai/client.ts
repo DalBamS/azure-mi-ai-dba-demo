@@ -30,7 +30,8 @@ interface ChatCompletionResponse {
 }
 
 export const DEFAULT_SLM_ENDPOINT = "http://127.0.0.1:11434/v1";
-export const DEFAULT_SLM_MODEL = "phi3.5";
+export const DEFAULT_SLM_MODEL = "qwen2.5:3b";
+const LIVE_AI_TIMEOUT_MS = 120_000;
 
 function modelFromEnv(env: NodeJS.ProcessEnv): string {
   return env.SLM_MODEL?.trim() || DEFAULT_SLM_MODEL;
@@ -111,22 +112,28 @@ export class LiveAiClient implements AiClient {
     const messages: ChatMessage[] = buildMessages(input);
     const headers: Record<string, string> = { "content-type": "application/json" };
     if (this.apiKey) headers.authorization = `Bearer ${this.apiKey}`;
+    const abort = new AbortController();
+    const timeout = setTimeout(() => abort.abort(), LIVE_AI_TIMEOUT_MS);
 
     let response: Response;
     try {
       response = await fetch(`${this.endpoint}/chat/completions`, {
         method: "POST",
         headers,
+        signal: abort.signal,
         body: JSON.stringify({
           model: this.model,
           messages,
           stream: false,
           temperature: 0.2,
-          max_tokens: 400,
+          max_tokens: 256,
+          keep_alive: -1,
         }),
       });
     } catch (err) {
       throw new Error(`SLM request failed: ${(err as Error).message}`);
+    } finally {
+      clearTimeout(timeout);
     }
 
     if (!response.ok) {

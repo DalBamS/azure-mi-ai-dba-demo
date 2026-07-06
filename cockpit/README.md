@@ -54,8 +54,11 @@ never executes SQL.
 | Variable | Default | Notes |
 |----------|---------|-------|
 | `SLM_ENDPOINT` | `http://127.0.0.1:11434/v1` | Self-hosted SLM base URL inside the data boundary; live AI mode requires this to be explicitly set. |
-| `SLM_MODEL` | `phi3.5` | Model name sent to `/chat/completions`. |
+| `SLM_MODEL` | `qwen2.5:3b` | Model name sent to `/chat/completions` (Ollama, Apache-2.0). |
 | `SLM_API_KEY` | unset | Optional bearer token; never hardcode or log it. Ollama ignores it. |
+
+Live AI requests use `stream:false`, `temperature:0.2`, `max_tokens:256`, and
+`keep_alive:-1` for the CPU-only VM's Ollama model, with a 120s backend timeout.
 
 ## Run the backend (mock)
 ```powershell
