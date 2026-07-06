@@ -15,6 +15,7 @@ cockpit/
   server/              Node + TypeScript + Express backend
     src/manifest/      manifest types (zod), scanner/generator, loader
     src/runner/        MockRunner (default) + LiveRunner (guarded) + factory
+    src/ai/            MockAiClient + OpenAI-compatible SLM client
     src/api/           Express app (health, manifest, demos, run)
   web/                 React + shadcn frontend (added in a later phase)
 ```
@@ -44,6 +45,18 @@ in [`../scripts/lib.ps1`](../scripts/lib.ps1) — secrets come from `.env` / Key
 Vault and are never hardcoded (the password flag is redacted in any surfaced
 command string).
 
+The AI diagnosis panel is also mock-first. It only switches to the live
+self-hosted SLM when `COCKPIT_MODE=live`, `COCKPIT_ALLOW_LIVE=1`, and
+`SLM_ENDPOINT` are set. The backend sends the presenter question plus captured
+diagnose/evidence text to an OpenAI-compatible chat-completions endpoint; it
+never executes SQL.
+
+| Variable | Default | Notes |
+|----------|---------|-------|
+| `SLM_ENDPOINT` | `http://127.0.0.1:11434/v1` | Self-hosted SLM base URL inside the data boundary; live AI mode requires this to be explicitly set. |
+| `SLM_MODEL` | `phi3.5` | Model name sent to `/chat/completions`. |
+| `SLM_API_KEY` | unset | Optional bearer token; never hardcode or log it. Ollama ignores it. |
+
 ## Run the backend (mock)
 ```powershell
 cd cockpit
@@ -51,17 +64,18 @@ npm run dev:server        # http://localhost:5177
 ```
 
 API:
-- `GET /api/health` — `{ ok, mode, demos }`
+- `GET /api/health` — `{ ok, mode, resolvedMode, aiMode, aiModel, demos }`
 - `GET /api/manifest` — full manifest
 - `GET /api/demos` — demo summaries
 - `GET /api/demos/:id` — one demo (by id or slug) with steps
 - `POST /api/run` — body `{ demoId, stepId, database? }` → run result
+- `POST /api/ai/ask` — body `{ demoId, question, contextText? }` → grounded SLM markdown diagnosis
 
 ## Self-test
 ```powershell
 cd cockpit
 npm install
-npm run selftest          # backend only — 21 tests, mock, no live instance
+npm run selftest          # backend only — 54 tests, mock, no live instance
 npm run selftest:all      # regen manifest + backend tests + web build (full integration)
 ```
 
