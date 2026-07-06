@@ -1,7 +1,6 @@
 export interface DemoAnnotation {
   summary: string;
   whyAi: string;
-  aiHint?: string;
 }
 
 export const DEMO_ANNOTATIONS: Record<string, DemoAnnotation> = {
@@ -10,28 +9,24 @@ export const DEMO_ANNOTATIONS: Record<string, DemoAnnotation> = {
       "랭킹 Top-N 조회 지연을 재현하고 DMV/실행계획 근거로 누락된 `IX_leaderboard_rating` 인덱스를 찾아 승인 후 복구하는 운영 데모입니다.",
     whyAi:
       "AI 하네스가 자연어 신고에서 근거 수집, 원인 식별, 수정안 제안, Eval 검증까지 묶어 DBA가 수동 창 전환 대신 승인과 판단에 집중하게 합니다.",
-    aiHint: "랭킹 조회가 느려요. DIAGNOSE OUTPUT 근거로 원인과 안전한 해결책을 알려주세요.",
   },
   B: {
     summary:
       "재화와 인벤토리 교차 업데이트에서 생긴 deadlock을 XEvents 근거로 분석해 상반된 락 순서를 근본 원인으로 짚는 데모입니다.",
     whyAi:
       "AI가 사라지기 쉬운 deadlock graph를 자동 해석하고 일관된 락 순서 패턴을 제안해, XML 수동 추적과 원인 누락 위험을 줄입니다.",
-    aiHint: "deadlock이 발생했어요. 그래프와 세션 출력 근거로 원인과 재발 방지책을 설명해 주세요.",
   },
   C: {
     summary:
       "패치/통계 변경 뒤 앱 경로에서만 느려지는 plan regression을 SET 옵션 분리와 parameter sniffing 근거로 설명하는 데모입니다.",
     whyAi:
       "AI가 앱과 SSMS의 plan cache 차이, sniffed parameter, proc stats를 함께 모아 안전한 안정 plan 대안을 비교하게 합니다.",
-    aiHint: "앱에서만 쿼리가 느려졌어요. plan regression 근거와 안전한 완화책을 정리해 주세요.",
   },
   M: {
     summary:
       "격리된 데모 MI의 취약 동적 SQL proc에서 SQL Injection 시도 흔적을 진단하고 파라미터화된 안전 구현을 제안하는 보안 운영 데모입니다.",
     whyAi:
       "AI가 audit/쿼리 텍스트/proc 정의를 함께 읽어 취약 코드 위치와 입력 패턴을 연결하고, 방어 관점의 수정안을 즉시 제시합니다.",
-    aiHint: "SQL Injection 의심 흔적이 있어요. 출력 근거로 취약 지점과 안전한 수정 SQL을 제안해 주세요.",
   },
   E: {
     summary:

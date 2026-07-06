@@ -57,8 +57,6 @@ export const DemoSchema = z.object({
   summary: z.string().min(1).optional(),
   /** Presenter-facing explanation of why AI improves this workflow. */
   whyAi: z.string().min(1).optional(),
-  /** Suggested natural-language prompt for the grounded SLM diagnosis panel. */
-  aiHint: z.string().min(1).optional(),
   /** Repo-relative POSIX path to the demo folder. */
   path: z.string().min(1),
   /** Repo-relative POSIX path to the demo README, if present. */

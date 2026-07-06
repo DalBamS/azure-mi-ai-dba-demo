@@ -23,7 +23,6 @@ export interface Demo {
   title: string;
   summary?: string;
   whyAi?: string;
-  aiHint?: string;
   path: string;
   readme: string | null;
   steps: Step[];
@@ -36,7 +35,6 @@ export interface DemoSummary {
   title: string;
   summary?: string;
   whyAi?: string;
-  aiHint?: string;
   stepCount: number;
 }
 
@@ -44,8 +42,6 @@ export interface Health {
   ok: boolean;
   mode: "mock" | "live";
   resolvedMode: "mock" | "live";
-  aiMode: "mock" | "live";
-  aiModel: string;
   demos: number;
 }
 
@@ -67,14 +63,6 @@ export interface RunResult {
 
 export type RunVariant = "pass" | "fail";
 
-export interface AiResult {
-  answerMarkdown: string;
-  model: string;
-  latencyMs: number;
-  mode: "mock" | "live";
-  mocked: boolean;
-}
-
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.text();
@@ -93,10 +81,4 @@ export const api = {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ demoId, stepId, variant }),
     }).then(json<RunResult>),
-  ask: (demoId: string, question: string, contextText = "") =>
-    fetch("/api/ai/ask", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ demoId, question, contextText }),
-    }).then(json<AiResult>),
 };
