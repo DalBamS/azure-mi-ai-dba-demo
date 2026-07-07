@@ -41,18 +41,34 @@
 - Top-N 랭킹 조회가 scan이 아닌 seek/order-friendly index access를 사용.
 - `SET STATISTICS IO/TIME` 기준 logical reads가 유의미하게 감소.
 
+## Cockpit AI 진단 패널 (경로 B — Azure AI Foundry)
+
+데모 Cockpit 웹앱(`cockpit/`)에서 `02_diagnose.sql` 실행 후, AI 진단 패널을 사용해 **Azure AI Foundry 관리형 엔드포인트**로 진단을 요청할 수 있습니다. 이것은 VS Code Copilot agent + mssql MCP(경로 A)와 동일한 "실제 AI 순간"을 Cockpit 내부에서 구현한 것입니다.
+
+**작동 방식**:
+- Cockpit이 마지막으로 실행한 `02_diagnose.sql`의 DMV/실행계획 출력을 **근거(grounded context)** 로 모아 Foundry에 전달합니다.
+- Foundry 모델(예: `gpt-5-mini`)이 근거를 해석해 진단 + `CREATE INDEX IX_leaderboard_rating ON dbo.leaderboard(season, rating DESC) INCLUDE(player_id, wins, losses);` 같은 후보 DDL을 반환합니다.
+- **SQL을 실행하지 않습니다**: Cockpit AI 패널은 읽기전용 진단만 제공하며, DDL 적용은 반드시 `04_remediate.sql`을 사람이 승인 후 실행해야 합니다.
+
+**환경변수** (`.env`/Key Vault, 실값 하드코딩 금지):
+- `COCKPIT_MODE=live`, `COCKPIT_ALLOW_LIVE=1`
+- `AI_FOUNDRY_ENDPOINT` (전체 chat-completions POST URL, 예: `https://<resource>.services.ai.azure.com/openai/v1/chat/completions`)
+- `AI_FOUNDRY_API_KEY`, `AI_FOUNDRY_DEPLOYMENT`, `AI_FOUNDRY_REASONING_EFFORT` (reasoning model 사용 시 `minimal` 또는 `low` 권장)
+
+자세한 환경설정은 [`cockpit/README.md`](../../../cockpit/README.md)를 참고하세요.
+
 ## 임팩트 강조 (발표 팁)
 > ⚠ 기본 시드 규모(leaderboard가 player당 ~1행, ≤100k)에선 인덱스 DROP 후에도 **wall-clock(경과시간) 차이가 sub-second**라 청중이 체감하기 어려울 수 있습니다.
 >
 > 라이브 MI 검증(smoke 시드, leaderboard 992행)에서도 wall-clock은 sub-second였고 논리읽기 차이도 **9 vs 2**로 작게 나왔습니다. 핵심은 `PK_leaderboard`가 `(season, player_id)` 클러스터드라 `WHERE season = 1` 자체는 항상 저렴한 seek라는 점입니다. 차이를 키우는 레버는 **season=1 행 수**입니다.
 - **논리읽기(logical reads)**: season=1 행을 늘린 뒤 `01_reproduce.sql`에서 인덱스 누락 상태의 clustered seek + many-row read + `Sort`가 높은 읽기량/시간을 만드는지 보여주기.
-- **실행계획 연산자**: `A/00_inject`로 `IX_leaderboard_rating`을 DROP하면 많은 season=1 행을 읽고 정렬하고, `04_remediate.sql`로 인덱스를 복구하면 `Index Seek`(정렬 불필요) 경로로 돌아오는 그림이 가장 설득력 있음.
+- **실행계획 연산자**: `issue-injection\01_missing_index.sql`로 `IX_leaderboard_rating`을 DROP하면 많은 season=1 행을 읽고 정렬하고, `04_remediate.sql`로 인덱스를 복구하면 `Index Seek`(정렬 불필요) 경로로 돌아오는 그림이 가장 설득력 있음.
 - **확장성 메시지**: "season=1 데이터가 커질수록 정렬 비용과 읽기량이 선형 이상으로 악화된다"로 프로덕션 함의를 연결.
 - 체감 격차를 키우려면 전용 스크립트 `scripts\inflate-leaderboard.ps1`(멱등·가역)으로 season=1 자체에 synthetic rows를 추가합니다:
   ```powershell
   # 1) 대용량화 — season=1에 synthetic rows 추가(아래 수치는 가이드일 뿐 실측 아님)
   .\scripts\inflate-leaderboard.ps1 -Rows 300000
-  # 2) cockpit에서 A/00_inject → 01_reproduce → many season=1 rows scan/sort 확인
+  # 2) issue-injection\01_missing_index.sql → 01_reproduce → many season=1 rows scan/sort 확인
   # 3) 04_remediate로 IX_leaderboard_rating 복구 → 빠른 seek/order-friendly 경로 확인
   # 4) 발표 후 정리(원복) — synthetic player_id rows만 삭제
   .\scripts\inflate-leaderboard.ps1 -Reset

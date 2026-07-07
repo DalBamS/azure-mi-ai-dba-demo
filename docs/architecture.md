@@ -43,6 +43,10 @@ flowchart TD
 
 > **L/S 하이브리드**의 목적: 비용·지연·데이터 경계를 동시에 최적화. 값싼 반복은 로컬 SLM으로 내려 비용을 낮추고, 데이터를 인스턴스 경계 안에 두며, 복잡한 해석만 LLM으로 올립니다. 이때 **추론 엔드포인트 자체를 자체호스팅(경계 안)으로 둘 수 있어**, LLM 계층도 데이터 경계 안에서 돌릴 선택지를 갖습니다.
 
+**실제 AI 경로 두 가지**:
+- **경로 A**: VS Code Copilot agent + mssql MCP — 데모 진행자가 VS Code에서 자연어로 진단 요청.
+- **경로 B**: **Cockpit AI 진단 패널 → Azure AI Foundry(관리형, 자체 구독/테넌트/리전, API 키)** — 데모 조종석 웹앱(`cockpit/`)에서 diagnose 스텝 실행 후 AI 패널로 진단 요청. 구성은 [`cockpit/README.md`](../cockpit/README.md)를 참고하세요.
+
 MCP 구성의 "무엇·왜"는 [`mcp/README.md`](../mcp/README.md), 추론(SLM/LLM) 엔드포인트 구성과 라이브 연결 절차는 [`mcp/README.md`](../mcp/README.md)의 추론 엔드포인트 절과 [`mcp/LIVE-AGENT-SETUP.md`](../mcp/LIVE-AGENT-SETUP.md)를 참고하세요.
 
 ## 4. Eval — 하네스의 안전장치

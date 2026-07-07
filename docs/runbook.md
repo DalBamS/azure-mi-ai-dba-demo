@@ -110,6 +110,7 @@ sqlcmd @(& { . .\scripts\lib.ps1; Import-DotEnv; Get-SqlcmdArgs }) -i issue-inje
 
 - #2(Blocking/Deadlock, 데모 B)는 `sessionA`/`sessionB` 두 스크립트를 **동시에** 실행합니다. 상세는 [`issue-injection/README.md`](../issue-injection/README.md).
 - **AI 라이브 연결**로 진단하려면 VS Code `mssql` 확장 에이전트 모드(Entra 읽기전용)로 붙습니다 — 단계별 절차는 [`mcp/LIVE-AGENT-SETUP.md`](../mcp/LIVE-AGENT-SETUP.md), 서버 구성은 [`mcp/README.md`](../mcp/README.md)를 참고하세요(여기서 중복하지 않습니다).
+- **경로 B**: Cockpit 웹앱(`cockpit/`)에서 AI 진단 패널을 사용하면 Azure AI Foundry 관리형 엔드포인트로 진단을 받을 수 있습니다. 구성은 [`cockpit/README.md`](../cockpit/README.md)를 참고하세요.
 - ⚠️ #6(SQL Injection, 데모 M)·tempdb·런어웨이 쿼리 등 인스턴스 레벨 데모는 **격리/전용 MI에서만**([보안](./security.md)).
 
 ## 8. 정리 (cleanup)

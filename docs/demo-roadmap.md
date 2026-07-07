@@ -14,6 +14,7 @@ flowchart LR
 ```
 
 모든 데모는 같은 **공통 패턴**을 따릅니다: *자연어 → 다단계 자동 진단 → Eval → 사람 승인*.
+실제 AI 경로는 두 가지입니다: **경로 A**(VS Code Copilot agent + mssql MCP)와 **경로 B**(Cockpit AI 진단 패널 → Azure AI Foundry 관리형 엔드포인트). 경로 B 구성은 [`cockpit/README.md`](../cockpit/README.md)를 참고하세요.
 
 ## 2. Pre-prod — 도입 전 검증
 
