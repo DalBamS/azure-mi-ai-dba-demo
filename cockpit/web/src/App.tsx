@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { DemoSidebar } from "@/components/DemoSidebar";
 import { StepItem } from "@/components/StepItem";
 import { OutputPanel } from "@/components/OutputPanel";
+import { AiDiagnosePanel } from "@/components/AiDiagnosePanel";
 
 export default function App() {
   const [health, setHealth] = useState<Health | null>(null);
@@ -92,6 +93,13 @@ export default function App() {
             </Badge>
           )}
           {health && <Badge variant="outline">{health.demos} demos</Badge>}
+          {health && <Badge variant="outline">AI {health.aiMode}</Badge>}
+          {health && (
+            <Badge variant={health.aiEndpointConfigured ? "outline" : "secondary"}>
+              {health.aiEndpointConfigured ? "Foundry endpoint set" : "Foundry endpoint unset"}
+            </Badge>
+          )}
+          {health && <Badge variant="outline">{health.aiModel}</Badge>}
         </div>
       </header>
 
@@ -146,6 +154,8 @@ export default function App() {
                     </Button>
                   </div>
                 </div>
+
+                <AiDiagnosePanel demo={demo} latestResult={result} />
 
                 <div className="space-y-1.5">
                   {demo.steps.map((step) => (

@@ -26,6 +26,7 @@
       # OpenAI-compatible local endpoint (Foundry Local), custom model
       $env:SLM_ENDPOINT = 'http://localhost:5273/v1/chat/completions'
       $env:SLM_API_KEY  = '<optional-local-key>'
+      $env:SLM_AUTH     = 'bearer' # or 'api-key' for Azure AI Foundry
       .\run_batch_lint.ps1 -InputDir .\objects -Api OpenAI -Model 'phi-4-mini'
 #>
 [CmdletBinding()]
@@ -48,7 +49,10 @@ param(
     [string] $Model = 'phi4',
 
     # Local endpoint URL. Falls back to env:SLM_ENDPOINT, then a localhost default.
-    [string] $Endpoint = $env:SLM_ENDPOINT
+    [string] $Endpoint = $env:SLM_ENDPOINT,
+
+    # OpenAI-compatible auth header: api-key or bearer. Defaults by endpoint host.
+    [string] $AuthHeader = $env:SLM_AUTH
 )
 
 $ErrorActionPreference = 'Stop'
@@ -65,6 +69,29 @@ if (-not $Endpoint) {
 
 # Optional API key for OpenAI-compatible endpoints — env var ONLY, never hardcoded.
 $apiKey = $env:SLM_API_KEY
+
+function Resolve-AuthHeader {
+    param([string] $Endpoint, [string] $Requested)
+
+    if (-not [string]::IsNullOrWhiteSpace($Requested)) {
+        $normalized = $Requested.Trim().ToLowerInvariant()
+        if ($normalized -notin @('api-key', 'bearer')) {
+            throw "AuthHeader must be 'api-key' or 'bearer'."
+        }
+        return $normalized
+    }
+
+    try {
+        $host = ([Uri] $Endpoint).Host.ToLowerInvariant()
+    }
+    catch {
+        $host = ''
+    }
+    if ($host -like '*azure.com') { return 'api-key' }
+    return 'bearer'
+}
+
+$resolvedAuthHeader = Resolve-AuthHeader -Endpoint $Endpoint -Requested $AuthHeader
 
 # --- Validate inputs ---
 if (-not (Test-Path -LiteralPath $InputDir)) { throw "InputDir not found: $InputDir" }
@@ -104,7 +131,13 @@ function Invoke-Slm {
     }
     else {
         $headers = @{}
-        if ($apiKey) { $headers['Authorization'] = "Bearer $apiKey" }
+        if ($apiKey) {
+            if ($resolvedAuthHeader -eq 'api-key') {
+                $headers['api-key'] = $apiKey
+            } else {
+                $headers['Authorization'] = "Bearer $apiKey"
+            }
+        }
         $body = @{
             model    = $Model
             messages = @(
