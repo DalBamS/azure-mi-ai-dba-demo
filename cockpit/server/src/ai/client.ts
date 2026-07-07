@@ -54,6 +54,13 @@ function temperatureFromEnv(env: NodeJS.ProcessEnv): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function reasoningEffortFromEnv(env: NodeJS.ProcessEnv): string | undefined {
+  const value = env.AI_FOUNDRY_REASONING_EFFORT?.trim().toLowerCase();
+  return value === "minimal" || value === "low" || value === "medium" || value === "high"
+    ? value
+    : undefined;
+}
+
 export function resolveAiMode(env: NodeJS.ProcessEnv = process.env): AiMode {
   const requested = (env.COCKPIT_MODE ?? "mock").toLowerCase();
   if (
@@ -129,6 +136,7 @@ export class LiveAiClient implements AiClient {
   private readonly timeoutMs: number;
   private readonly maxCompletionTokens: number;
   private readonly temperature?: number;
+  private readonly reasoningEffort?: string;
 
   constructor(env: NodeJS.ProcessEnv = process.env, timeoutMs = 60_000) {
     const endpoint = endpointFromEnv(env);
@@ -142,6 +150,7 @@ export class LiveAiClient implements AiClient {
     this.timeoutMs = timeoutMs;
     this.maxCompletionTokens = maxCompletionTokensFromEnv(env);
     this.temperature = temperatureFromEnv(env);
+    this.reasoningEffort = reasoningEffortFromEnv(env);
   }
 
   async ask(question: string, contextText?: string): Promise<AiResult> {
@@ -160,6 +169,7 @@ export class LiveAiClient implements AiClient {
       messages: ChatMessage[];
       max_completion_tokens: number;
       temperature?: number;
+      reasoning_effort?: string;
     } = {
       model: this.model,
       messages,
@@ -167,6 +177,9 @@ export class LiveAiClient implements AiClient {
     };
     if (this.temperature !== undefined) {
       requestBody.temperature = this.temperature;
+    }
+    if (this.reasoningEffort !== undefined) {
+      requestBody.reasoning_effort = this.reasoningEffort;
     }
 
     let response: Response;
