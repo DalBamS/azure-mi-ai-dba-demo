@@ -53,6 +53,19 @@ MCP가 **데이터 연결**(읽기전용)이라면, 추론 엔드포인트는 **
 
 > 프롬프트·데이터가 **내 구독/테넌트/리전 안에 머물고 모델 학습에 사용되지 않으며**, 프라이빗 네트워킹(프라이빗 엔드포인트/VNet)을 붙이면 **경계 안(옵션)** 으로도 운용할 수 있습니다. 리소스명/키/URL은 위 `<your-foundry-resource>` / `https://<your-foundry>.services.ai.azure.com/...` / `<from-portal>` 같은 자리표시자로만 두고, 실값은 `.env`(git-ignored)/Key Vault에 둡니다.
 
+**Demo Cockpit Azure AI Foundry 패널**
+
+`cockpit/`의 AI 진단 패널은 로컬 모델을 쓰지 않고 Azure AI Foundry/Azure OpenAI의 OpenAI 호환 chat-completions POST URL을 그대로 호출합니다. 실값은 `.env`(git-ignored)/Key Vault로만 주입합니다.
+
+| 환경변수 | 설명 |
+| --- | --- |
+| `AI_FOUNDRY_ENDPOINT` | 전체 POST URL. 예: `https://<resource>.services.ai.azure.com/models/chat/completions?api-version=2024-05-01-preview` 또는 `https://<resource>.openai.azure.com/openai/deployments/<deployment>/chat/completions?api-version=2024-08-01-preview` |
+| `AI_FOUNDRY_API_KEY` | API 키. 코드/문서/config에 실값 금지. |
+| `AI_FOUNDRY_DEPLOYMENT` | `body.model`로 보낼 배포/모델 이름. |
+| `AI_FOUNDRY_AUTH` | 선택값: `api-key`(기본) 또는 `bearer`. |
+
+라이브 AI 모드는 `COCKPIT_MODE=live`, `COCKPIT_ALLOW_LIVE=1`, `AI_FOUNDRY_ENDPOINT`, `AI_FOUNDRY_API_KEY`가 모두 있을 때만 켜지고, 부족하면 mock 응답으로 폴백합니다. Cockpit은 이 경로에서 SQL을 실행하지 않고 최신 스텝 출력만 근거로 진단 요청을 보냅니다.
+
 
 **이 env를 쓰는 스크립트**
 - [`demos/pre-prod/G-sql-preflight-lint/run_batch_lint.ps1`](../demos/pre-prod/G-sql-preflight-lint/run_batch_lint.ps1) — 로컬 SLM 배치 린트(`SLM_ENDPOINT`/`SLM_API_KEY`).

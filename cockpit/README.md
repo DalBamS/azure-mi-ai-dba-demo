@@ -15,6 +15,7 @@ cockpit/
   server/              Node + TypeScript + Express backend
     src/manifest/      manifest types (zod), scanner/generator, loader
     src/runner/        MockRunner (default) + LiveRunner (guarded) + factory
+    src/ai/            MockAiClient + Azure AI Foundry chat-completions client
     src/api/           Express app (health, manifest, demos, run)
   web/                 React + shadcn frontend (added in a later phase)
 ```
@@ -44,6 +45,19 @@ in [`../scripts/lib.ps1`](../scripts/lib.ps1) — secrets come from `.env` / Key
 Vault and are never hardcoded (the password flag is redacted in any surfaced
 command string).
 
+The AI diagnosis panel is also mock-first. It only switches to live Azure AI
+Foundry when `COCKPIT_MODE=live`, `COCKPIT_ALLOW_LIVE=1`,
+`AI_FOUNDRY_ENDPOINT`, and `AI_FOUNDRY_API_KEY` are set. The backend sends the
+presenter question plus captured diagnose/evidence text to the configured
+OpenAI-compatible chat-completions endpoint; it never executes SQL.
+
+| Variable | Default | Notes |
+|----------|---------|-------|
+| `AI_FOUNDRY_ENDPOINT` | unset | Full POST URL, including path and `api-version`; live AI mode requires this to be explicitly set. |
+| `AI_FOUNDRY_API_KEY` | unset | Foundry/Azure OpenAI API key; never hardcode or log it. |
+| `AI_FOUNDRY_DEPLOYMENT` | `mock-foundry` | Model/deployment name sent as `body.model` in live requests. |
+| `AI_FOUNDRY_AUTH` | `api-key` | Header style: `api-key` or `bearer`. |
+
 ## Run the backend (mock)
 ```powershell
 cd cockpit
@@ -51,17 +65,18 @@ npm run dev:server        # http://localhost:5177
 ```
 
 API:
-- `GET /api/health` — `{ ok, mode, demos }`
+- `GET /api/health` — `{ ok, mode, resolvedMode, aiMode, aiModel, aiEndpointConfigured, demos }`
 - `GET /api/manifest` — full manifest
 - `GET /api/demos` — demo summaries
 - `GET /api/demos/:id` — one demo (by id or slug) with steps
 - `POST /api/run` — body `{ demoId, stepId, database? }` → run result
+- `POST /api/ai/ask` — body `{ demoId, question, contextText? }` → grounded Foundry/mock markdown diagnosis
 
 ## Self-test
 ```powershell
 cd cockpit
 npm install
-npm run selftest          # backend only — 21 tests, mock, no live instance
+npm run selftest          # backend only — 54 tests, mock, no live instance
 npm run selftest:all      # regen manifest + backend tests + web build (full integration)
 ```
 

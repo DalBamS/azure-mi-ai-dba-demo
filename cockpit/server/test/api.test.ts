@@ -32,6 +32,9 @@ describe("HTTP API (mock)", () => {
     const body = await res.json();
     expect(body.ok).toBe(true);
     expect(body.mode).toBe("mock");
+    expect(body.aiMode).toBe("mock");
+    expect(body.aiModel).toEqual(expect.any(String));
+    expect(body.aiEndpointConfigured).toEqual(expect.any(Boolean));
     expect(body.demos).toBe(11);
   });
 
