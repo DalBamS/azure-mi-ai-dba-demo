@@ -59,9 +59,12 @@ MCP가 **데이터 연결**(읽기전용)이라면, 추론 엔드포인트는 **
 
 | 환경변수 | 설명 |
 | --- | --- |
-| `AI_FOUNDRY_ENDPOINT` | 전체 POST URL. 예: `https://<resource>.services.ai.azure.com/models/chat/completions?api-version=2024-05-01-preview` 또는 `https://<resource>.openai.azure.com/openai/deployments/<deployment>/chat/completions?api-version=2024-08-01-preview` |
+| `AI_FOUNDRY_ENDPOINT` | 전체 chat-completions POST URL. **중요**: 반드시 chat-completions URL이어야 합니다(Responses API `/openai/v1/responses`가 아님). 현대 v1 표면 예: `https://<resource>.services.ai.azure.com/openai/v1/chat/completions`. Azure OpenAI 형식도 유효: `https://<resource>.openai.azure.com/openai/deployments/<deployment>/chat/completions?api-version=2024-08-01-preview` |
 | `AI_FOUNDRY_API_KEY` | API 키. 코드/문서/config에 실값 금지. |
 | `AI_FOUNDRY_DEPLOYMENT` | `body.model`로 보낼 배포/모델 이름. |
+| `AI_FOUNDRY_MAX_COMPLETION_TOKENS` | 완료 토큰 예산(기본값 2000). reasoning 모델은 충분히 큰 값이 필요할 수 있음. |
+| `AI_FOUNDRY_TEMPERATURE` | 선택값. reasoning 모델(예: `gpt-5-mini`)은 기본값만 허용하므로 **설정하지 않음** 권장. |
+| `AI_FOUNDRY_REASONING_EFFORT` | 선택값: `minimal`, `low`, `medium`, `high`. reasoning 모델 사용 시 `minimal` 또는 `low`로 설정하면 빈 응답과 높은 지연을 피할 수 있음. `medium`/`high`는 `AI_FOUNDRY_MAX_COMPLETION_TOKENS`를 6000+ 이상으로 늘려야 함. |
 | `AI_FOUNDRY_AUTH` | 선택값: `api-key`(기본) 또는 `bearer`. |
 
 라이브 AI 모드는 `COCKPIT_MODE=live`, `COCKPIT_ALLOW_LIVE=1`, `AI_FOUNDRY_ENDPOINT`, `AI_FOUNDRY_API_KEY`가 모두 있을 때만 켜지고, 부족하면 mock 응답으로 폴백합니다. Cockpit은 이 경로에서 SQL을 실행하지 않고 최신 스텝 출력만 근거로 진단 요청을 보냅니다.

@@ -26,6 +26,7 @@
 
 - **Tools = MCP**: VS Code `mssql` 확장 에이전트 모드(공식 1순위) 읽기전용 연결 + Azure MCP(`@azure/mcp`)로 Log Analytics / Defender 연동.
 - **L/S 하이브리드**: 값싼 반복·정적 검증·PII-안전 작업은 로컬 SLM(Phi-4, Foundry Local / Ollama)에서, 복잡한 해석은 LLM에서. → 비용·지연·데이터 경계를 동시에 최적화.
+- **실제 AI 경로**: *경로 A* = VS Code Copilot agent + mssql MCP, *경로 B* = **Cockpit AI 진단 패널 → Azure AI Foundry(관리형, 자체 구독/테넌트/리전, API 키)**. 경로 B는 diagnose 스텝 출력을 근거로 Foundry 모델에 진단을 요청하고 후보 DDL을 받습니다(SQL 미실행, 승인 후 적용). 구성: [`cockpit/README.md`](../../cockpit/README.md)
 - **Guardrails**: 진단은 읽기전용, DDL/DML은 제안 → 승인 → 적용, 멱등·롤백 보장.
 - **왜 가능한가**: MI는 DMV·실행계획·Query Store·XEvents·`sys` 카탈로그로 진단 근거가 구조화되어 있어, 에이전트가 결정론적으로 근거를 수집하고 Eval을 돌릴 수 있습니다. 자연어의 모호함을 수치 Eval로 닫는 것이 핵심입니다.
 

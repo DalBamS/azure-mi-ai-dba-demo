@@ -6,6 +6,7 @@ AI가 게임 DB의 전 생애주기(**도입 전 검증 → 배포 CI/CD → 운
 **하네스**입니다. 각 단계 공통 패턴: *자연어 → 다단계 자동 진단 → 검증(Eval) → 사람 승인*.
 값싼 반복 = **SLM**(Phi-4 로컬), 복잡한 해석 = **LLM**(클라우드), 안전 연결 = **MCP**(읽기전용).
 SLM/LLM 결정 근거는 [docs/architecture.md §3](docs/architecture.md#3-역할-분리--slm--llm--mcp)의 표를 따르며, 자동 라우터가 아니라 데모별 배치입니다(예: SLM=G 로컬 린트, LLM=B/F/J 리포트).
+**데모 조종석**(cockpit)에서는 Azure AI Foundry 관리형 엔드포인트를 사용한 **AI 진단 패널**(경로 B)로 실시간 진단을 받을 수 있습니다. 환경설정은 [`cockpit/README.md`](cockpit/README.md)를 참고하세요.
 
 > 이 리포지토리는 데모 **자산 전체**를 담습니다. 운영(Runtime) A/B/C/M,
 > Pre-prod E/F/G/O, CI/CD I/J/K까지 11개 데모가 발표용 런북과 SQL/스크립트
@@ -22,6 +23,7 @@ workload/
   native/         (선택) C++ MSOLEDBSQL 마이크로 드라이버
 issue-injection/  이슈 주입 1~6 + 각 롤백 스크립트
 demos/            pre-prod(E/F/G/O), cicd(I/J/K), runtime(A/B/C/M)
+cockpit/          데모 조종석 웹앱: 11개 데모 재현/관찰 GUI + AI 진단 패널 (Azure AI Foundry)
 mcp/              MCP 서버 config (읽기전용 원칙)
 docs/             아키텍처 / 로드맵 / 런북 / 보안
 scripts/          헬퍼(prereq 점검, 스키마 적용, 시드)
