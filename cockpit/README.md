@@ -58,11 +58,16 @@ OpenAI-compatible chat-completions endpoint; it never executes SQL.
 | `AI_FOUNDRY_DEPLOYMENT` | `mock-foundry` | Model/deployment name sent as `body.model` in live requests. |
 | `AI_FOUNDRY_MAX_COMPLETION_TOKENS` | `2000` | Completion budget sent as `max_completion_tokens`; reasoning models may need a generous value before visible output appears. |
 | `AI_FOUNDRY_TEMPERATURE` | unset | Optional custom temperature. Leave unset for reasoning models like `gpt-5-mini`, which only allow the default. |
+| `AI_FOUNDRY_REASONING_EFFORT` | unset | Optional reasoning effort: `minimal`, `low`, `medium`, or `high`. |
 | `AI_FOUNDRY_AUTH` | `api-key` | Header style: `api-key` or `bearer`. |
 
 Reasoning models such as `gpt-5-mini` require `max_completion_tokens` and no custom
 temperature. The live AI client uses that shape by default and only sends
 `temperature` when `AI_FOUNDRY_TEMPERATURE` is explicitly set.
+For these models, set `AI_FOUNDRY_REASONING_EFFORT` to `minimal` or `low` to avoid
+spending the whole completion budget on hidden reasoning, which can yield empty
+content and high latency. `medium` or `high` reasoning effort may require a much
+larger `AI_FOUNDRY_MAX_COMPLETION_TOKENS` value, such as 6000 or more.
 
 ## Run the backend (mock)
 ```powershell

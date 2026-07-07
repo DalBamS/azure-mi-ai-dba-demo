@@ -170,6 +170,7 @@ describe("LiveAiClient", () => {
     expect(body).not.toHaveProperty("max_tokens");
     expect(body).not.toHaveProperty("stream");
     expect(body).not.toHaveProperty("temperature");
+    expect(body).not.toHaveProperty("reasoning_effort");
     expect(body).not.toHaveProperty("keep_alive");
     expect(body.messages[1].content).toContain("DIAGNOSE OUTPUT");
   });
@@ -195,6 +196,42 @@ describe("LiveAiClient", () => {
     });
     expect(body).not.toHaveProperty("max_tokens");
     expect(body).not.toHaveProperty("stream");
+  });
+
+  it("includes optional reasoning effort when configured", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(completionResponse());
+    const client = new LiveAiClient({
+      AI_FOUNDRY_ENDPOINT: foundryEndpoint,
+      AI_FOUNDRY_API_KEY: "test-foundry-key",
+      AI_FOUNDRY_DEPLOYMENT: "gpt-demo",
+      AI_FOUNDRY_REASONING_EFFORT: "low",
+    } as NodeJS.ProcessEnv);
+
+    await client.ask("원인?", "DIAGNOSE OUTPUT");
+
+    const [, init] = fetchSpy.mock.calls[0]!;
+    const body = JSON.parse((init as RequestInit).body as string);
+    expect(body).toMatchObject({
+      model: "gpt-demo",
+      max_completion_tokens: 2000,
+      reasoning_effort: "low",
+    });
+  });
+
+  it("omits invalid reasoning effort values", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(completionResponse());
+    const client = new LiveAiClient({
+      AI_FOUNDRY_ENDPOINT: foundryEndpoint,
+      AI_FOUNDRY_API_KEY: "test-foundry-key",
+      AI_FOUNDRY_DEPLOYMENT: "gpt-demo",
+      AI_FOUNDRY_REASONING_EFFORT: "turbo",
+    } as NodeJS.ProcessEnv);
+
+    await client.ask("원인?", "DIAGNOSE OUTPUT");
+
+    const [, init] = fetchSpy.mock.calls[0]!;
+    const body = JSON.parse((init as RequestInit).body as string);
+    expect(body).not.toHaveProperty("reasoning_effort");
   });
 
   it("uses bearer auth only when AI_FOUNDRY_AUTH=bearer", async () => {
