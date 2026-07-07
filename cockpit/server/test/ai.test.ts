@@ -165,12 +165,36 @@ describe("LiveAiClient", () => {
     const body = JSON.parse((init as RequestInit).body as string);
     expect(body).toMatchObject({
       model: "gpt-demo",
-      temperature: 0.2,
-      max_tokens: 512,
-      stream: false,
+      max_completion_tokens: 2000,
     });
+    expect(body).not.toHaveProperty("max_tokens");
+    expect(body).not.toHaveProperty("stream");
+    expect(body).not.toHaveProperty("temperature");
     expect(body).not.toHaveProperty("keep_alive");
     expect(body.messages[1].content).toContain("DIAGNOSE OUTPUT");
+  });
+
+  it("includes optional temperature and max completion token overrides", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(completionResponse());
+    const client = new LiveAiClient({
+      AI_FOUNDRY_ENDPOINT: foundryEndpoint,
+      AI_FOUNDRY_API_KEY: "test-foundry-key",
+      AI_FOUNDRY_DEPLOYMENT: "gpt-demo",
+      AI_FOUNDRY_TEMPERATURE: "0.5",
+      AI_FOUNDRY_MAX_COMPLETION_TOKENS: "1234",
+    } as NodeJS.ProcessEnv);
+
+    await client.ask("원인?", "DIAGNOSE OUTPUT");
+
+    const [, init] = fetchSpy.mock.calls[0]!;
+    const body = JSON.parse((init as RequestInit).body as string);
+    expect(body).toMatchObject({
+      model: "gpt-demo",
+      max_completion_tokens: 1234,
+      temperature: 0.5,
+    });
+    expect(body).not.toHaveProperty("max_tokens");
+    expect(body).not.toHaveProperty("stream");
   });
 
   it("uses bearer auth only when AI_FOUNDRY_AUTH=bearer", async () => {

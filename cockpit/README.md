@@ -53,10 +53,16 @@ OpenAI-compatible chat-completions endpoint; it never executes SQL.
 
 | Variable | Default | Notes |
 |----------|---------|-------|
-| `AI_FOUNDRY_ENDPOINT` | unset | Full POST URL, including path and `api-version`; live AI mode requires this to be explicitly set. |
+| `AI_FOUNDRY_ENDPOINT` | unset | Full chat-completions POST URL; for the modern v1 surface use `https://<resource>.services.ai.azure.com/openai/v1/chat/completions`. |
 | `AI_FOUNDRY_API_KEY` | unset | Foundry/Azure OpenAI API key; never hardcode or log it. |
 | `AI_FOUNDRY_DEPLOYMENT` | `mock-foundry` | Model/deployment name sent as `body.model` in live requests. |
+| `AI_FOUNDRY_MAX_COMPLETION_TOKENS` | `2000` | Completion budget sent as `max_completion_tokens`; reasoning models may need a generous value before visible output appears. |
+| `AI_FOUNDRY_TEMPERATURE` | unset | Optional custom temperature. Leave unset for reasoning models like `gpt-5-mini`, which only allow the default. |
 | `AI_FOUNDRY_AUTH` | `api-key` | Header style: `api-key` or `bearer`. |
+
+Reasoning models such as `gpt-5-mini` require `max_completion_tokens` and no custom
+temperature. The live AI client uses that shape by default and only sends
+`temperature` when `AI_FOUNDRY_TEMPERATURE` is explicitly set.
 
 ## Run the backend (mock)
 ```powershell

@@ -24,6 +24,7 @@ interface ChatCompletionResponse {
 }
 
 export const MOCK_AI_MODEL = "mock-foundry";
+const DEFAULT_MAX_COMPLETION_TOKENS = 2000;
 
 function modelFromEnv(env: NodeJS.ProcessEnv): string {
   return env.AI_FOUNDRY_DEPLOYMENT?.trim() || MOCK_AI_MODEL;
@@ -39,6 +40,18 @@ function apiKeyFromEnv(env: NodeJS.ProcessEnv): string | undefined {
 
 function authModeFromEnv(env: NodeJS.ProcessEnv): "api-key" | "bearer" {
   return env.AI_FOUNDRY_AUTH?.trim().toLowerCase() === "bearer" ? "bearer" : "api-key";
+}
+
+function maxCompletionTokensFromEnv(env: NodeJS.ProcessEnv): number {
+  const parsed = Number.parseInt(env.AI_FOUNDRY_MAX_COMPLETION_TOKENS ?? "", 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_MAX_COMPLETION_TOKENS;
+}
+
+function temperatureFromEnv(env: NodeJS.ProcessEnv): number | undefined {
+  const raw = env.AI_FOUNDRY_TEMPERATURE?.trim();
+  if (!raw) return undefined;
+  const parsed = Number.parseFloat(raw);
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 export function resolveAiMode(env: NodeJS.ProcessEnv = process.env): AiMode {
@@ -114,6 +127,8 @@ export class LiveAiClient implements AiClient {
   private readonly apiKey: string;
   private readonly authMode: "api-key" | "bearer";
   private readonly timeoutMs: number;
+  private readonly maxCompletionTokens: number;
+  private readonly temperature?: number;
 
   constructor(env: NodeJS.ProcessEnv = process.env, timeoutMs = 60_000) {
     const endpoint = endpointFromEnv(env);
@@ -125,6 +140,8 @@ export class LiveAiClient implements AiClient {
     this.apiKey = apiKey;
     this.authMode = authModeFromEnv(env);
     this.timeoutMs = timeoutMs;
+    this.maxCompletionTokens = maxCompletionTokensFromEnv(env);
+    this.temperature = temperatureFromEnv(env);
   }
 
   async ask(question: string, contextText?: string): Promise<AiResult> {
@@ -138,6 +155,19 @@ export class LiveAiClient implements AiClient {
     }
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+    const requestBody: {
+      model: string;
+      messages: ChatMessage[];
+      max_completion_tokens: number;
+      temperature?: number;
+    } = {
+      model: this.model,
+      messages,
+      max_completion_tokens: this.maxCompletionTokens,
+    };
+    if (this.temperature !== undefined) {
+      requestBody.temperature = this.temperature;
+    }
 
     let response: Response;
     try {
@@ -145,13 +175,7 @@ export class LiveAiClient implements AiClient {
         method: "POST",
         headers,
         signal: controller.signal,
-        body: JSON.stringify({
-          model: this.model,
-          messages,
-          temperature: 0.2,
-          max_tokens: 512,
-          stream: false,
-        }),
+        body: JSON.stringify(requestBody),
       });
     } catch (err) {
       if ((err as Error).name === "AbortError") {
@@ -163,7 +187,14 @@ export class LiveAiClient implements AiClient {
     }
 
     if (!response.ok) {
-      throw new Error(`Azure AI Foundry request failed with HTTP ${response.status}`);
+      const messagePrefix = `Azure AI Foundry request failed with HTTP ${response.status}`;
+      let responseText = "";
+      try {
+        responseText = (await response.text()).trim().slice(0, 500);
+      } catch {
+        // Best-effort diagnostic only; preserve the original error if the body cannot be read.
+      }
+      throw new Error(responseText ? `${messagePrefix}: ${responseText}` : messagePrefix);
     }
 
     let body: ChatCompletionResponse;
